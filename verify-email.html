@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Email - Cloud Beacon</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+
+        .status {
+            margin: 30px 0;
+            font-size: 16px;
+            color: #666;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .success {
+            display: none;
+            color: #4caf50;
+        }
+
+        .success-icon {
+            font-size: 60px;
+            margin: 20px 0;
+        }
+
+        .error {
+            display: none;
+            color: #f44336;
+        }
+
+        .error-icon {
+            font-size: 60px;
+            margin: 20px 0;
+        }
+
+        .button {
+            display: inline-block;
+            margin-top: 30px;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .details {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #999;
+        }
+
+        .email-confirmed {
+            color: #4caf50;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">☁️ Cloud Beacon</div>
+        
+        <!-- Loading State -->
+        <div id="loading">
+            <h1>Verifying Your Email</h1>
+            <div class="status">
+                <div class="spinner"></div>
+                <p>Please wait while we verify your email...</p>
+            </div>
+        </div>
+
+        <!-- Success State -->
+        <div id="success" class="success">
+            <h1>Email Verified!</h1>
+            <div class="success-icon">✓</div>
+            <p class="status">Your email has been successfully verified.</p>
+            <p class="email-confirmed" id="verified-email"></p>
+            <p class="status">You can now log in to your account.</p>
+            <a href="index.html" class="button">Go to Login</a>
+        </div>
+
+        <!-- Error State -->
+        <div id="error" class="error">
+            <h1>Verification Failed</h1>
+            <div class="error-icon">✗</div>
+            <p class="status" id="error-message">Unable to verify your email address. The link may have expired.</p>
+            <div class="details">
+                <p>Verification links expire after 24 hours.</p>
+                <p id="resend-info" style="display: none;">
+                    <a href="index.html" style="color: #667eea; text-decoration: none;">Sign up again</a> to request a new verification email.
+                </p>
+            </div>
+            <a href="index.html" class="button">Back to Login</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+        import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCFW5LfLEOW8_2L5wM2__yVJrwi_kLHapQ",
+            authDomain: "cloud-beacon-55a40.firebaseapp.com",
+            projectId: "cloud-beacon-55a40",
+            storageBucket: "cloud-beacon-55a40.appspot.com",
+            messagingSenderId: "717626206906",
+            appId: "1:717626206906:web:e1cc29fbfed6dd1fe5f1d7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Get verification token from URL
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+
+        console.log('[EmailVerification] Token from URL:', token);
+
+        if (!token) {
+            handleError('No verification token provided. Please check your email link.');
+            document.getElementById('resend-info').style.display = 'block';
+        } else {
+            verifyEmail(token);
+        }
+
+        async function verifyEmail(token) {
+            try {
+                console.log('[EmailVerification] Calling verifyEmail endpoint with token:', token);
+                
+                const response = await fetch(
+                    `https://us-central1-cloud-beacon-55a40.cloudfunctions.net/verifyEmail?token=${encodeURIComponent(token)}`,
+                    {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    }
+                );
+
+                console.log('[EmailVerification] Response status:', response.status);
+                const data = await response.json();
+                console.log('[EmailVerification] Response data:', data);
+
+                if (response.ok && data.success) {
+                    handleSuccess(data.email);
+                } else {
+                    handleError(data.message || 'Failed to verify email. The link may have expired.');
+                    document.getElementById('resend-info').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('[EmailVerification] Error:', error);
+                handleError('An error occurred while verifying your email. Please try again.');
+            }
+        }
+
+        function handleSuccess(email) {
+            console.log('[EmailVerification] ✅ Email verified:', email);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'block';
+            document.getElementById('verified-email').textContent = email;
+
+            // Auto-redirect after 5 seconds
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 5000);
+        }
+
+        function handleError(message) {
+            console.error('[EmailVerification] ❌ Verification failed:', message);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
+        }
+    </script>
+</body>
+</html>

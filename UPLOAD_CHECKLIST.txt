@@ -1,0 +1,91 @@
+════════════════════════════════════════════════════════════════════════════════
+CLOUD BEACON PROJECT - UPLOAD CHECKLIST
+════════════════════════════════════════════════════════════════════════════════
+
+SECURITY CHECKLIST - DO NOT UPLOAD THESE FILES:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+❌ functions/.env                    (Contains SMTP credentials & API keys)
+❌ functions/node_modules/           (80MB of code - users will install via npm)
+❌ Any .env.local or .env.* files   (Environment variables with secrets)
+❌ node_modules/ (root level)        (If it exists - not needed)
+
+
+SAFE TO UPLOAD - ROOT LEVEL FILES:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ All .js files (app.js, auth.js, projects.js, etc.)
+✅ All .html files (index.html, profile.html, etc.)
+✅ All .css files (style.css, profile.css, project.css, etc.)
+✅ All markdown files (.md)
+✅ All JSON config files (except .env files)
+✅ images/
+✅ Translator/ folder
+✅ posts/ folder
+✅ functions/package.json
+✅ functions/package-lock.json
+✅ functions/index.js
+
+
+FUNCTIONS FOLDER - NODE MODULES HANDLING:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BEFORE UPLOADING:
+1. Delete functions/node_modules/ folder locally
+   Command: rm -r functions/node_modules
+   OR: rmdir /s functions\node_modules
+
+2. Upload ONLY these files from functions/:
+   ✅ package.json
+   ✅ package-lock.json
+   ✅ index.js
+
+USERS WILL:
+- Run: npm install (in functions folder)
+- This automatically installs all dependencies from package.json
+- Takes ~30 seconds
+- Much better than downloading 80MB of files
+
+
+PROJECT STRUCTURE FOR UPLOAD:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+cloudbeacon/
+├── app.js
+├── auth.js
+├── colors.js
+├── [all other .js files]
+├── index.html
+├── profile.html
+├── [all other .html files]
+├── style.css
+├── [all other .css files]
+├── README.md (or SETUP.md with instructions)
+├── firestore.rules
+├── images/
+├── Translator/
+├── posts/
+├── functions/
+│   ├── package.json
+│   ├── package-lock.json
+│   └── index.js
+│   └── ❌ NO node_modules folder
+└── [markdown files]
+
+
+CRITICAL REMINDERS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️  ALWAYS delete functions/node_modules/ before uploading
+⚠️  NEVER include functions/.env file
+⚠️  Include a README explaining setup:
+    - Firebase setup instructions
+    - How to configure .env
+    - How to run npm install
+    - What dependencies are needed
+
+✨  The code itself is SECURE and safe to share
+✨  You're only protecting configuration/credentials
+
+
+ESTIMATED FILE SIZE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WITHOUT node_modules:     ~2-5 MB
+WITH node_modules:       ~80+ MB ❌ DON'T UPLOAD
+
+════════════════════════════════════════════════════════════════════════════════

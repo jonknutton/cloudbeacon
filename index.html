@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title></title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="loading-container">
+                <div class="loading-spinner">⧗</div>
+                <div class="loading-text">Loading</div>
+                <div class="loading-bar-container">
+                    <div class="loading-bar" id="loadingProgress"></div>
+                </div>
+                <div class="loading-percent" id="loadingPercent">0%</div>
+            </div>
+        </div>
+
+        <!-- Floating top-left menu — hidden until logged in -->
+        <div id="floatingMenu" style="display:none;">
+            <button id="menuBtn" onclick="toggleFloatingMenu()" style="display:flex; align-items:center; gap:8px; padding:0; border-radius:50%; width:55px; height:55px; background:none; border:0px solid #444; cursor:pointer; justify-content:center; position:relative;">
+                <div id="menuBtnAvatar" style="width:55px; height:55px; border-radius:50%; background:#666; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; font-weight:bold; flex-shrink:0;">U</div>
+                <span id="menuBtnNotificationBadge" style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:white; font-size:10px; font-weight:bold; border-radius:50%; width:22px; height:22px; display:none; align-items:center; justify-content:center; border:2px solid #1a1a1a;">0</span>
+                <span id="menuBtnUsername" style="color:#fff; font-size:13px; display:none; max-width:100px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\">User</span>
+            </button>
+            <div id="menuList" style="display:none;">
+                <a class="menu-item" href="index.html">Home</a>
+                <a class="menu-item" href="market.html">Market</a>
+                <a class="menu-item" href="translator/translator.html">Translator</a>
+                <a class="menu-item" href="#" onclick="openProfile()">Profile</a>
+                <a class="menu-item" href="#" onclick="MessagingUI.openModal(); return false;">💬 Messages <span id="messagesNotificationBadge" style="background:#ef4444; color:white; font-size:11px; font-weight:bold; border-radius:50%; width:20px; height:20px; display:none; align-items:center; justify-content:center; margin-left:auto;">0</span></a>
+                <a class="menu-item" href="#" onclick="if(typeof NotificationsUI !== 'undefined') NotificationsUI.openModal(); return false;">🔔 Notifications <span id="notificationsNotificationBadge" style="background:#ef4444; color:white; font-size:11px; font-weight:bold; border-radius:50%; width:20px; height:20px; display:none; align-items:center; justify-content:center; margin-left:auto;">0</span></a>
+                <a class="menu-item" href="search.html">🔍 Find</a>
+                
+                <!-- Support Section -->
+                <div class="menu-divider"></div>
+                <a class="menu-item" href="#" onclick="openBugReportModal(); return false;">🐛 Report Bug</a>
+                
+                <!-- Settings Section -->
+                <div class="menu-divider"></div>
+                <span class="menu-section-label">Settings</span>
+                <a class="menu-item" href="#" onclick="if(typeof AccountSettings !== 'undefined') AccountSettings.openSettingsModal(); else alert('Settings loading...'); return false;">⚙️ Account Settings</a>
+                <a class="menu-item" href="#" onclick="ColorSettings.showModal(); return false;">🎨 Theme</a>
+                
+                <div class="menu-divider"></div>
+                <a class="menu-item" href="#" onclick="handleLogout()">Logout</a>
+            </div>
+        </div>
+
+        <main>
+            <!-- Landing screen — shown before login -->
+            <section id="landing">
+                <div id="landingLogo">
+                    <h1>Cloud Beacon</h1>
+                </div>
+                <div id="landingButtons">
+                    <button id="landingAuthBtn" onclick="showAuthForms()">Login</button>
+                    <button id="landingGuestBtn" onclick="handleGuest()">Ghost</button>
+                </div>
+            </section>
+
+            <section id="auth" style="display:none;">
+                <div id="authForms" style="display:flex; justify-content:center;">
+                    <div id="loginForm" style="text-align:center; width:100%; max-width:400px;">
+                        <h2>Login</h2>
+                        <input type="email" id="loginEmail" placeholder="Email" style="width:100%; box-sizing:border-box;">
+                        <div style="position:relative; display:block; width:100%; margin-top:8px;">
+                            <input type="password" id="loginPassword" placeholder="Password" style="width:100%; box-sizing:border-box; padding-right:40px;">
+                            <span id="loginPasswordToggle" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:18px; user-select:none; color:#666;" onclick="togglePasswordVisibility('loginPassword')">👁️</span>
+                        </div>
+                        <div id="loginError" style="color:#ef4444; font-size:13px; margin-top:8px; min-height:20px;"></div>
+                        <div id="loginAttemptCounter" style="color:#f97316; font-size:12px; margin-top:6px; font-weight:bold; display:none;"></div>
+                        <button id="loginBtn" onclick="handleLogin()" style="width:200px; margin-top:12px;">Login</button>
+                        <div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:16px;">
+                            <p style="margin:0;"><a href="#" onclick="showLanding()" style="text-decoration:none; color:#0066cc;">← Back</a></p>
+                            <span style="color:#999;">|</span>
+                            <p style="margin:0;">No account? <a href="#" onclick="showRegister()" style="text-decoration:none; color:#0066cc;">Register</a></p>
+                        </div>
+                    </div>
+
+                    <div id="registerForm" style="display:none; text-align:center; width:100%; max-width:400px;">
+                        <h2>Register</h2>
+                        <input type="text" id="regUsername" placeholder="Username" style="width:100%; box-sizing:border-box;">
+                        <input type="email" id="regEmail" placeholder="Email" style="width:100%; box-sizing:border-box; margin-top:8px;">
+                        <div style="position:relative; display:block; width:100%; margin-top:8px;">
+                            <input type="password" id="regPassword" placeholder="Password" style="width:100%; box-sizing:border-box; padding-right:40px;">
+                            <span id="regPasswordToggle" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:18px; user-select:none; color:#666;" onclick="togglePasswordVisibility('regPassword')">👁️</span>
+                        </div>
+                        <div id="registerError" style="color:#ef4444; font-size:13px; margin-top:8px; min-height:20px;"></div>
+                        <button onclick="handleRegister()" style="width:200px; margin-top:12px;">Register</button>
+                        <div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:16px;">
+                            <p style="margin:0;"><a href="#" onclick="showLanding()" style="text-decoration:none; color:#0066cc;">← Back</a></p>
+                            <span style="color:#999;">|</span>
+                            <p style="margin:0;">Have an account? <a href="#" onclick="showLogin()" style="text-decoration:none; color:#0066cc;">Login</a></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="userPanel" style="display:none;">
+                    <p>Welcome, <span id="username"></span>!</p>
+                </div>
+            </section>
+
+            <!-- Human Verification Modal (Attempt 22 - Impossible CAPTCHA) -->
+            <div id="humanVerificationModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; overflow:auto;">
+                <div style="background:white; margin:20px auto; padding:30px; border-radius:10px; max-width:600px; max-height:80vh; overflow:auto;">
+                    <h2 style="margin-top:0; text-align:center;">Prove You're Human</h2>
+                    <p style="text-align:center; color:#666;">Complete the security verification</p>
+                    
+                    <!-- Game 1: Select Tiles with Asterisks -->
+                    <div id="game1Container" style="margin:20px 0; text-align:center;">
+                        <h3>Game 1: Select all tiles containing asterisks (*)</h3>
+                        <div id="tileGrid" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; margin:20px auto; width:fit-content;"></div>
+                        <button onclick="submitGame1()" style="width:100%; padding:10px; background:#333; color:white; border:none; border-radius:5px; cursor:pointer;">Verify</button>
+                    </div>
+                    
+                    <!-- Game 2: Spot the Difference -->
+                    <div id="game2Container" style="display:none; margin:20px 0; text-align:center;">
+                        <h3>Game 2: Find 5 differences between the images</h3>
+                        <div style="display:flex; gap:20px; justify-content:center; margin:20px 0;">
+                            <div>
+                                <p style="text-align:center; font-size:12px; color:#999;">Image A</p>
+                                <canvas id="diffCanvas1" width="200" height="150" style="border:1px solid #ddd; cursor:crosshair;"></canvas>
+                            </div>
+                            <div>
+                                <p style="text-align:center; font-size:12px; color:#999;">Image B</p>
+                                <canvas id="diffCanvas2" width="200" height="150" style="border:1px solid #ddd;"></canvas>
+                            </div>
+                        </div>
+                        <p style="text-align:center; font-size:12px; color:#666;">Differences found: <span id="diffCount">0</span>/5</p>
+                        <button onclick="submitGame2()" style="width:100%; padding:10px; background:#333; color:white; border:none; border-radius:5px; cursor:pointer;">Verify</button>
+                    </div>
+                    
+                    <!-- Game 3: Sliding Puzzle -->
+                    <div id="game3Container" style="display:none; margin:20px 0; text-align:center;">
+                        <h3>Game 3: Solve the puzzle</h3>
+                        <div id="puzzleBoard" style="display:grid; grid-template-columns:repeat(3, 80px); gap:5px; margin:20px auto; width:fit-content;"></div>
+                        <p style="text-align:center; font-size:12px; color:#666; margin-top:20px;">Click tiles to slide them</p>
+                        <button onclick="submitGame3()" style="width:100%; padding:10px; background:#333; color:white; border:none; border-radius:5px; cursor:pointer;">Verify</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bug Report Modal -->
+            <div id="bugReportModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; overflow:auto;" onclick="if(event.target.id === 'bugReportModal') closeBugReportModal();">
+                <div style="background:white; margin:40px auto; padding:30px; border-radius:10px; max-width:500px; max-height:80vh; overflow:auto;">
+                    <h2 style="margin-top:0; text-align:center;">🐛 Report a Bug</h2>
+                    <p style="text-align:center; color:#666; font-size:14px;">Help us improve by reporting the issue you encountered</p>
+                    
+                    <textarea id="bugDescription" placeholder="Describe the bug you found..." style="width:100%; height:150px; padding:12px; border:1px solid #ccc; border-radius:6px; font-family:Arial, sans-serif; font-size:14px; box-sizing:border-box; resize:vertical; margin:16px 0;"></textarea>
+                    
+                    <div style="display:flex; gap:12px; margin-top:20px;">
+                        <button onclick="closeBugReportModal()" style="flex:1; padding:10px; background:#e0e0e0; color:#333; border:none; border-radius:6px; cursor:pointer; font-weight:600;">Cancel</button>
+                        <button onclick="submitBugReport()" style="flex:1; padding:10px; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600;">Send Report</button>
+                    </div>
+                    <div id="bugReportStatus" style="text-align:center; margin-top:12px; font-size:13px; color:#666; display:none;"></div>
+                </div>
+            </div>
+
+            <section id="feed" style="display:none;">
+                <div id="feedHeader">
+                    <div id="filterBar" style="display:flex; gap:12px; align-items:center;">
+                        <div class="filter-dropdown" id="filterDropdownWrap">
+                            <button id="filterToggleBtn" onclick="toggleFilterPanel(event)">
+                                <span id="filterIcon">⚗</span> <span id="filterLabel">All</span> <span id="filterChevron">▾</span>
+                            </button>
+                            <div id="filterPanel" class="filter-panel">
+                                <button class="filter-panel-item active" data-filter="all" onclick="setFilter('all')">All</button>
+                                <button class="filter-panel-item" data-filter="following" onclick="setFilter('following')">Following</button>
+                                <button class="filter-panel-item" data-filter="posts" onclick="setFilter('posts')">Posts</button>
+                                <div class="filter-panel-group">
+                                    <button class="filter-panel-item has-sub" onclick="toggleFilterSub(event)">Projects <span class="sub-chevron">▸</span></button>
+                                    <div class="filter-sub-panel" id="projectsSubPanel">
+                                        <button class="filter-sub-item" data-filter="projects" onclick="setFilter('projects')">All Projects</button>
+                                        <button class="filter-sub-item" data-filter="legislation" onclick="setFilter('legislation')">All Bills</button>
+                                        <div class="filter-sub-divider"></div>
+                                        <button class="filter-sub-item" data-filter="government" onclick="setFilter('government')">Government Bills</button>
+                                        <button class="filter-sub-item" data-filter="private" onclick="setFilter('private')">Private Members'</button>
+                                        <button class="filter-sub-item" data-filter="lords" onclick="setFilter('lords')">Lords Bills</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="text" id="feedSearchInput" placeholder="Search posts..." style="flex-grow:1; margin-left:12px; padding:8px 12px; border:1px solid #444; border-radius:6px; background:#2a2218; color:#fff; font-size:14px;" onkeyup="searchFeedCount()" onkeydown="if(event.key==='Enter') searchFeedFiltered();">
+                        <button id="feedSearchBtn" onclick="searchFeedFiltered()" style="padding:8px 16px; border:1px solid #0ca678; border-radius:6px; background:#0ca678; color:#fff; font-size:14px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; margin-left:8px;">Search</button>
+                    </div>
+                </div>
+
+                <div id="syncStatus"></div>
+                <div id="posts"></div>
+            </section>
+
+            <div id="modal" style="display:none;">
+                <div id="modalContent">
+                    <div id="modalHeader" class="modal-header">
+                        <div class="modal-buttons-left">
+                            <button id="postToggleBtn" class="modal-tab-btn active" onclick="showPostForm()">Post</button>
+                            <button id="projectToggleBtn" class="modal-tab-btn" onclick="showProjectForm()">Project</button>
+                        </div>
+                        <button class="modal-close-btn" onclick="closeModal()">✕</button>
+                    </div>
+
+                    <div id="postForm" class="modal-form">
+                        <textarea id="postContent" class="modal-textarea" placeholder="What's on your mind?"></textarea>
+                        
+                        <div class="modal-media-section">
+                            <div class="media-upload">
+                                <label class="media-upload-label">
+                                    <input type="file" id="postImage" accept="image/*" style="display:none;" onchange="handlePostImageSelect(event)">
+                                    <span>📷 Upload Image</span>
+                                </label>
+                                <span id="postImageName" class="media-filename"></span>
+                            </div>
+                            
+                            <div class="media-embed">
+                                <label for="postVideoEmbed" class="media-label">🎬 Video Embed URL</label>
+                                <input type="text" id="postVideoEmbed" class="modal-input" placeholder="e.g., https://www.youtube.com/watch?v=...">
+                            </div>
+                        </div>
+
+                        <div class="modal-submit-container">
+                            <button class="modal-submit-btn" onclick="handlePost()">Submit</button>
+                        </div>
+                    </div>
+
+                    <div id="projectForm" class="modal-form" style="display:none;">
+                        <input type="text" id="projectTitle" class="modal-input" placeholder="Project title">
+
+                        <select id="projectCategory" class="modal-select">
+                            <option value="">Select a category...</option>
+                            <option value="Tech">💻 Tech — software, hardware, open source</option>
+                            <option value="Civil">🏗️ Civil — construction, infrastructure, buildings</option>
+                            <option value="Community">🤝 Community — campaigns, fundraising, people</option>
+                            <option value="Law">⚖️ Law — policy, legislation, legal reform</option>
+                        </select>
+
+                        <textarea id="projectOverview" class="modal-input" placeholder="Project overview" style="min-height:80px; resize:vertical;"></textarea>
+
+                        <div style="margin-bottom:12px;">
+                            <button type="button" class="modal-input" style="background:#f0f0f0; border:1px solid #ddd; padding:8px; text-align:left; cursor:pointer;" onclick="document.getElementById('projectHeaderImage').click()">
+                                📷 Upload Header Image
+                            </button>
+                            <input type="file" id="projectHeaderImage" accept="image/*" style="display:none;" onchange="handleProjectImageSelect(event)">
+                            <span id="projectImageName" class="media-filename" style="font-size:12px; color:#666; display:block; margin-top:4px;"></span>
+                        </div>
+
+                        <label class="modal-checkbox">
+                            <input type="checkbox" id="projectPublic" checked> Public
+                        </label>
+
+                        <label class="modal-checkbox">
+                            <input type="checkbox" id="projectProposal"> Create as Proposal
+                        </label>
+                        
+                        <div class="modal-submit-container">
+                            <button class="modal-submit-btn" onclick="handleProject()">Create Project</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="modal" style="display:none;">
+            <div class="modal-content" style="width:90%; max-width:600px; max-height:90vh; overflow-y:auto;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h2 style="margin:0; color:#fff;">Account Settings</h2>
+                    <button onclick="AccountSettings.closeSettingsModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:#fff;">×</button>
+                </div>
+
+                <!-- Settings Tabs -->
+                <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:1px solid #333;">
+                    <button class="settings-tab-btn active" onclick="AccountSettings.switchSettingsTab('security')" style="padding:12px 16px; background:none; border:none; color:#fff; cursor:pointer; border-bottom:2px solid transparent; font-weight:600;">🔒 Security</button>
+                    <button class="settings-tab-btn" onclick="AccountSettings.switchSettingsTab('privacy')" style="padding:12px 16px; background:none; border:none; color:#999; cursor:pointer; border-bottom:2px solid transparent; font-weight:600;">👁️ Privacy</button>
+                    <button class="settings-tab-btn" onclick="AccountSettings.switchSettingsTab('account')" style="padding:12px 16px; background:none; border:none; color:#999; cursor:pointer; border-bottom:2px solid transparent; font-weight:600;">⚙️ Account</button>
+                </div>
+
+                <!-- Security Tab -->
+                <div id="settings-security" class="settings-tab-panel" style="display:block;">
+                    <!-- Email Verification -->
+                    <div style="background:#1a1a1a; border-radius:8px; padding:16px; margin-bottom:16px;">
+                        <h3 style="margin:0 0 12px 0; color:#fff; font-size:16px;">Email Verification</h3>
+                        <p style="margin:0 0 8px 0; color:#999; font-size:14px;">Email: <strong id="settingsEmail">—</strong></p>
+                        <p style="margin:0 0 12px 0; color:#999; font-size:14px;">Status: <strong id="settingsEmailVerified" style="color:#ef4444;">✗ Not Verified</strong></p>
+                        <button id="sendVerificationEmailBtn" onclick="AccountSettings.sendVerificationEmail()" style="padding:8px 16px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600; display:none;">📧 Send Verification Email</button>
+                    </div>
+
+                    <!-- Change Password -->
+                    <div style="background:#1a1a1a; border-radius:8px; padding:16px; margin-bottom:16px;">
+                        <h3 style="margin:0 0 12px 0; color:#fff; font-size:16px;">Change Password</h3>
+                        <input type="password" id="currentPassword" placeholder="Current password" style="width:100%; padding:10px; border:1px solid #333; border-radius:4px; background:#222; color:#fff; margin-bottom:10px; box-sizing:border-box; font-size:13px;">
+                        <input type="password" id="newPassword" placeholder="New password" style="width:100%; padding:10px; border:1px solid #333; border-radius:4px; background:#222; color:#fff; margin-bottom:10px; box-sizing:border-box; font-size:13px;">
+                        <input type="password" id="confirmPassword" placeholder="Confirm new password" style="width:100%; padding:10px; border:1px solid #333; border-radius:4px; background:#222; color:#fff; margin-bottom:10px; box-sizing:border-box; font-size:13px;">
+                        <button onclick="AccountSettings.changePassword()" style="width:100%; padding:10px; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600;">Update Password</button>
+                    </div>
+
+                    <!-- Two-Factor Authentication -->
+                    <div style="background:#1a1a1a; border-radius:8px; padding:16px;">
+                        <h3 style="margin:0 0 12px 0; color:#fff; font-size:16px;">Two-Factor Authentication</h3>
+                        <p style="margin:0 0 12px 0; color:#999; font-size:14px;">Status: <strong id="twoFAStatus" style="color:#999;">Disabled</strong></p>
+                        <p style="margin:0 0 12px 0; color:#888; font-size:12px;">Add an extra layer of security to your account using an authenticator app.</p>
+                        <div style="display:flex; gap:8px;">
+                            <button id="setupTwoFABtn" onclick="AccountSettings.setupTwoFA()" style="padding:8px 16px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600;">Enable 2FA</button>
+                            <button id="disableTwoFABtn" onclick="AccountSettings.disableTwoFA()" style="padding:8px 16px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600; display:none;">Disable 2FA</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Privacy Tab (placeholder) -->
+                <div id="settings-privacy" class="settings-tab-panel" style="display:none;">
+                    <p style="color:#999; text-align:center; padding:20px;">Privacy settings coming soon</p>
+                </div>
+
+                <!-- Account Tab - Personal Details -->
+                <div id="settings-account" class="settings-tab-panel" style="display:none;">
+                    <div style="background:#1a1a1a; border-radius:8px; padding:16px; margin-bottom:16px;">
+                        <h3 style="margin:0 0 12px 0; color:#fff; font-size:16px;">Account Info</h3>
+                        
+                        <!-- User ID (Read-only, displays Firebase UID) -->
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block; margin-bottom:6px; color:#999; font-size:13px; font-weight:600;">User ID</label>
+                            <input type="text" id="accountUserID" placeholder="Loading..." style="width:100%; padding:10px; border:1px solid #333; border-radius:4px; background:#222; color:#fff; box-sizing:border-box; font-size:13px;" readonly>
+                            <p style="margin:4px 0 0 0; color:#666; font-size:11px;">Your unique Firebase identifier</p>
+                        </div>
+
+                        <!-- Email (Read-only) -->
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block; margin-bottom:6px; color:#999; font-size:13px; font-weight:600;">Email Address</label>
+                            <input type="email" id="accountEmail" placeholder="Your email" style="width:100%; padding:10px; border:1px solid #333; border-radius:4px; background:#222; color:#fff; box-sizing:border-box; font-size:13px;" readonly>
+                            <p style="margin:4px 0 0 0; color:#666; font-size:11px;">Your login email (read-only)</p>
+                        </div>
+                    </div>
+
+                    <div style="background:#1a1a1a; border-radius:8px; padding:16px; margin-bottom:16px;">
+                        <h3 style="margin:0 0 12px 0; color:#fff; font-size:16px;">Personal Information</h3>
+                        <p style="margin:0 0 12px 0; color:#888; font-size:12px;">Optional. Only required if you want to vote on legislation.</p>
+                        
+                        <!-- Full Name -->
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block; margin-bottom:6px; color:#999; font-size:13px; font-weight:600;">Full Name (optional)</label>
+                            <input type="text" id="accountFullName" placeholder="Enter your full name" style="width:100%; padding:10px; border:1px solid #333; border-radius:4px; background:#222; color:#fff; box-sizing:border-box; font-size:13px;">
+                        </div>
+
+                        <!-- Country -->
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block; margin-bottom:6px; color:#999; font-size:13px; font-weight:600;">Country (optional)</label>
+                            <select id="accountCountry" style="width:100%; padding:10px; border:1px solid #333; border-radius:4px; background:#222; color:#fff; box-sizing:border-box; font-size:13px;">
+                                <option value="">Select a country...</option>
+                                <option value="GB">🇬🇧 United Kingdom</option>
+                                <option value="IE">🇮🇪 Ireland</option>
+                                <option value="US">🇺🇸 United States</option>
+                                <option value="CA">🇨🇦 Canada</option>
+                                <option value="AU">🇦🇺 Australia</option>
+                                <option value="NZ">🇳🇿 New Zealand</option>
+                                <option value="EU">🇪🇺 European Union</option>
+                                <option value="OTHER">🌍 Other</option>
+                            </select>
+                        </div>
+
+                        <!-- Address -->
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block; margin-bottom:6px; color:#999; font-size:13px; font-weight:600;">Address (optional)</label>
+                            <input type="text" id="accountAddress" placeholder="Enter your address" style="width:100%; padding:10px; border:1px solid #333; border-radius:4px; background:#222; color:#fff; box-sizing:border-box; font-size:13px;">
+                        </div>
+
+                        <!-- Phone -->
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block; margin-bottom:6px; color:#999; font-size:13px; font-weight:600;">Phone (optional)</label>
+                            <input type="tel" id="accountPhone" placeholder="Enter your phone number" style="width:100%; padding:10px; border:1px solid #333; border-radius:4px; background:#222; color:#fff; box-sizing:border-box; font-size:13px;">
+                        </div>
+
+                        <!-- Edit/Save Buttons -->
+                        <div style="display:flex; gap:8px; margin-top:16px;">
+                            <button id="editAccountDetailsBtn" onclick="AccountSettings.toggleEditAccountDetails()" style="flex:1; padding:10px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600;">✎ Save</button>
+                            <button id="saveAccountDetailsBtn" onclick="AccountSettings.saveAccountDetails()" style="flex:1; padding:10px; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600; display:none;">✓ Save Changes</button>
+                            <button id="cancelAccountDetailsBtn" onclick="AccountSettings.cancelEditAccountDetails()" style="flex:1; padding:10px; background:#666; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600; display:none;">Cancel</button>
+                        </div>
+                    </div>
+
+                    <!-- Anonymous Usage Info -->
+                    <div style="background:#1a1a1a; border-radius:8px; padding:16px; margin-bottom:16px;">
+                        <h3 style="margin:0 0 12px 0; color:#fff; font-size:16px;">Anonymous Use</h3>
+                        <p style="margin:0 0 8px 0; color:#888; font-size:12px;">✓ Vote on posts and comments without any personal info</p>
+                        <p style="margin:0 0 8px 0; color:#888; font-size:12px;">✓ Chat and comment freely as an anonymous user</p>
+                        <p style="margin:0 0 8px 0; color:#888; font-size:12px;">✗ vote on legislation requires: Full Name + Country</p>
+                    </div>
+
+                    <!-- Voting Eligibility Info -->
+                    <div style="background:#1a1a1a; border-radius:8px; padding:16px;">
+                        <h3 style="margin:0 0 12px 0; color:#fff; font-size:16px;">Legislation Voting</h3>
+                        <p style="margin:0 0 8px 0; color:#888; font-size:12px;">If you fill in Full Name + Country, you can vote on legislation:</p>
+                        <ul style="margin:8px 0 0 16px; color:#888; font-size:12px; line-height:1.6;">
+                            <li>🇬🇧 <strong>UK</strong> - Vote on UK legislation only</li>
+                            <li>🇮🇪 <strong>Ireland</strong> - Vote on Irish legislation only</li>
+                            <li>🇪🇺 <strong>EU</strong> - Vote on EU-wide proposals</li>
+                            <li>🌍 <strong>Other</strong> - Limited voting on international projects</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Cloud Beacon</p>
+        </footer>
+
+        <!-- Floating post button — hidden until logged in -->
+        <button id="floatingPostBtn" title="New post" onclick="openModal()" style="display:none;">✚</button>
+
+        <script src="loading.js"></script>
+        <script src="colors.js"></script>
+        <script src="colorSettings.js"></script>
+        <script src="colorSettingsUI.js"></script>
+        <script src="sharing.js"></script>
+        <script src="messaging.js"></script>
+        <script src="messagingUI.js"></script>
+        <script src="notifications.js"></script>
+        <script src="loginHeckles.js"></script>
+
+        <script type="module" src="firebase.js"></script>
+        <script type="module" src="auth.js"></script>
+        <script type="module" src="posts.js"></script>
+        <script type="module" src="app.js"></script>
+        <script type="module" src="search.js"></script>
+        
+        <script src="settings.js"></script>
+        <script src="votingEligibility.js"></script>
+        
+        <script type="module">
+            // Simple debug: log bills to console on load
+            setTimeout(async () => {
+                try {
+                    const { db } = await import('./firebase.js');
+                    const { collection, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+                    
+                    const snap = await getDocs(
+                        query(collection(db, 'feed'), where('isLegislation', '==', true))
+                    );
+                    
+                    console.log('\n========== CURRENT BILLS IN FIRESTORE ==========');
+                    console.log(`Total: ${snap.size} legislation bills\n`);
+                    
+                    snap.forEach((doc, idx) => {
+                        const data = doc.data();
+                        console.log(`${idx + 1}. "${data.title}"`);
+                        console.log(`   Status: ${data.stage}`);
+                        console.log(`   Description: "${data.description}"`);
+                        console.log(`   Has ${data.publications?.length || 0} publications`);
+                        console.log(`   URL: ${data.parliamentUrl}`);
+                        console.log(`   ---`);
+                    });
+                    
+                    console.log('==============================================\n');
+                } catch (err) {
+                    console.log('Debug bills error:', err);
+                }
+            }, 2000); // Wait 2 seconds for app to load
+        </script>
+    </body>
+</html>

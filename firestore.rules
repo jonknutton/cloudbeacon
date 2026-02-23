@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow Cloud Functions to write to truceAgreements
+    match /truceAgreements/{email} {
+      allow read, write: if true;
+    }
+    
+    // Users collection - users can read/write their own, others can read profiles
+    match /users/{uid} {
+      allow read: if true; // Anyone can read user profiles
+      allow write: if request.auth != null && request.auth.uid == uid; // Only own user can write
+      
+      // Subcollections under users
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+    
+    // Feed collection - public read, authenticated write
+    match /feed/{feedId} {
+      allow read: if true; // Anyone can read feed
+      allow write: if request.auth != null; // Only authenticated users can write
+      
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if true;
+        allow write: if request.auth != null;
+      }
+      
+      // Votes subcollection
+      match /votes/{voteId} {
+        allow read: if true;
+        allow write: if request.auth != null;
+      }
+    }
+    
+    // Projects collection - public read, authenticated write
+    match /projects/{projectId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+      
+      // Subcollections under projects
+      match /{document=**} {
+        allow read: if true;
+        allow write: if request.auth != null;
+      }
+    }
+    
+    // Bug Reports collection - allow authenticated users to create reports
+    match /bugReports/{reportId} {
+      allow create, read: if request.auth != null;
+      allow write: if false; // Reports cannot be modified after creation
+    }
+    
+    // Default: public read, authenticated write
+    match /{document=**} {
+      allow read: if true; // Public read
+      allow write: if request.auth != null; // Only authenticated users can write
+    }
+  }
+}
+

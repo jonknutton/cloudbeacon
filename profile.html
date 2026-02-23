@@ -1,0 +1,341 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile — Cloud Beacon</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="profile.css">
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-container">
+            <div class="loading-spinner">⧗</div>
+            <div class="loading-text">Loading</div>
+            <div class="loading-bar-container">
+                <div class="loading-bar" id="loadingProgress"></div>
+            </div>
+            <div class="loading-percent" id="loadingPercent">0%</div>
+        </div>
+    </div>
+
+    <main class="profile-container" id="profileContainer">
+        <!-- Floating home button -->
+        <a href="index.html" class="floating-home-btn" title="Back to Home">🌙</a>
+
+        <!-- Custom Profile CSS (applied to profile-content) -->
+        <style id="customProfileCSS"></style>
+
+        <!-- Profile Content Container (for custom styling) -->
+        <div id="profileContent" class="profile-content">
+            <!-- Profile Header -->
+            <div class="profile-header">
+                <div class="profile-col-1">
+                    <div class="profile-avatar" id="profileAvatar">U</div>
+                    <div style="display:flex;align-items:center;gap:8px; justify-content:center;">
+                        <h1 id="profileUsername">Loading...</h1>
+                        <button id="usernameEditBtn" class="edit-btn" style="display:none;font-size:16px;padding:2px 8px;" onclick="window.toggleUsernameEdit()" title="Edit Username">✎</button>
+                    </div>
+                </div>
+                <div class="profile-col-2">
+                    <p id="profileBio">No bio yet.</p>
+                    <p id="profileJoined">Joined —</p>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button id="followBtn" class="follow-btn" style="display:none; padding:8px 16px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px;" onclick="window.handleFollowClick()">Follow</button>
+                        <button id="messageBtn" class="message-btn" style="display:none; padding:8px 16px; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px;" onclick="window.openMessageWindow()">💬 Message</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit Modal (replaces old profile-actions buttons) -->
+            <div id="editModal" class="modal" style="display:none;">
+                <div class="modal-content" style="width:90%; max-width:500px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h2 style="margin:0;">Edit Profile</h2>
+                        <button onclick="document.getElementById('editModal').style.display='none'" style="background:none; border:none; font-size:24px; cursor:pointer;">×</button>
+                    </div>
+                    
+                    <!-- Edit sections -->
+                    <div style="display:flex; flex-direction:column; gap:16px;">
+                        <!-- Username Section -->
+                        <div style="border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:16px;">
+                            <h3 style="margin:0 0 8px 0; font-size:14px; color:#aaa;">Username</h3>
+                            <input type="text" id="usernameInputModal" placeholder="Enter username..." style="width:100%; padding:8px; border:1px solid #444; border-radius:4px; background:#222; color:#fff; font-size:12px; box-sizing:border-box; margin-bottom:8px;" />
+                            <div style="display:flex; gap:8px;">
+                                <button onclick="window.handleUsernameUpdateFromModal()" class="save-btn">Save</button>
+                                <button onclick="document.getElementById('editModal').style.display='none'" class="cancel-btn">Cancel</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Avatar Section -->
+                        <div style="border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:16px;">
+                            <h3 style="margin:0 0 8px 0; font-size:14px; color:#aaa;">Avatar</h3>
+                            <div id="avatarUploadProgress" style="display:none; margin-bottom:8px; padding:8px; background:#222; border-radius:4px; text-align:center; font-size:12px; color:#999;">
+                                Uploading avatar...
+                            </div>
+                            <button id="avatarEditBtn" onclick="window.triggerAvatarUpload()" class="modal-edit-section-btn">📷 Change Avatar</button>
+                        </div>
+                        
+                        <!-- Bio Section -->
+                        <div style="border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:16px;">
+                            <h3 style="margin:0 0 8px 0; font-size:14px; color:#aaa;">Bio</h3>
+                            <textarea id="bioInputModal" placeholder="Tell people about yourself..." style="width:100%; padding:8px; border:1px solid #444; border-radius:4px; background:#222; color:#fff; font-size:12px; resize:vertical; min-height:80px; box-sizing:border-box;"></textarea>
+                            <div style="display:flex; gap:8px; margin-top:8px;">
+                                <button onclick="window.handleBioUpdateFromModal()" class="save-btn">Save</button>
+                                <button onclick="document.getElementById('editModal').style.display='none'" class="cancel-btn">Cancel</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Skills Section -->
+                        <div style="border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:16px;">
+                            <h3 style="margin:0 0 8px 0; font-size:14px; color:#aaa;">Skills</h3>
+                            <p style="font-size:11px;color:#888;margin-bottom:8px;">Select skills to showcase on your profile:</p>
+                            <select id="profileSkillsInput" class="modal-select" multiple style="width:100%; min-height:100px; padding:8px; border:1px solid #444; border-radius:4px; background:#222; color:#fff; font-size:12px;">
+                                <!-- Options populated by JavaScript -->
+                            </select>
+                            <div id="profileSelectedSkillsTags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
+                            <div style="display:flex; gap:8px; margin-top:8px;">
+                                <button onclick="window.handleSkillsUpdateFromModal()" class="save-btn">Save</button>
+                                <button onclick="document.getElementById('editModal').style.display='none'" class="cancel-btn">Cancel</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Customization Section -->
+                        <div>
+                            <h3 style="margin:0 0 8px 0; font-size:14px; color:#aaa;">Profile Customization</h3>
+                            <button onclick="window.openCustomizationModal()" class="modal-edit-section-btn">✨ Customize Profile</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bio Edit Section (kept for backward compatibility, but hidden by default) -->
+            <div id="editBioSection" style="display:none;" class="edit-bio-section">
+                <textarea id="bioInput" placeholder="Tell people about yourself..." class="bio-textarea"></textarea>
+                <div class="bio-actions">
+                    <button onclick="window.handleBioUpdate()" class="save-btn">Save</button>
+                    <button onclick="window.toggleBioEdit()" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Customization Editor (CSS + Embeds) - kept for modal use -->
+            <div id="customizationSection" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:1001; background:var(--color-darkCardBg); border-radius:12px; padding:24px; box-shadow:0 8px 32px rgba(0,0,0,0.3); max-width:500px; width:90%; max-height:600px; overflow-y:auto;" class="customization-section">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h3>Profile Customization</h3>
+                    <button onclick="window.toggleCustomizationEdit()" style="background:none; border:none; font-size:24px; cursor:pointer;">×</button>
+                </div>
+                
+                <div class="customization-tabs">
+                    <button class="customization-tab active" data-tab="css" onclick="window.switchCustomizationTab('css')">Custom CSS</button>
+                    <button class="customization-tab" data-tab="embeds" onclick="window.switchCustomizationTab('embeds')">Media Embeds</button>
+                </div>
+
+                <!-- CSS Editor Tab -->
+                <div id="customization-css" class="customization-tab-panel active">
+                    <div style="background:#1a1a1a;border:1px solid #3a3a3a;border-radius:6px;padding:12px;margin-bottom:12px;font-size:12px;color:#bbb;line-height:1.6;">
+                        <strong style="color:#fff;">Customizable CSS Selectors:</strong><br>
+                        <span style="color:#7dd3fc;">.profile-avatar</span> - Your avatar<br>
+                        <span style="color:#7dd3fc;">.profile-header</span> - Header section<br>
+                        <span style="color:#7dd3fc;">.profile-info</span> - Username/bio area<br>
+                        <span style="color:#7dd3fc;">.profile-stats</span> - Post/project counts<br>
+                        <span style="color:#7dd3fc;">.profile-tabs</span> - Tab buttons<br>
+                        <span style="color:#7dd3fc;">.profile-content</span> - Entire profile<br>
+                        <span style="color:#7dd3fc;">.activity-item</span> - Activity posts<br>
+                        <span style="color:#7dd3fc;">.profile-project-card</span> - Project cards<br><br>
+                        <strong style="color:#fff;">Example:</strong><br>
+                        <span style="color:#a78bfa;">/* Pink header with glow */</span><br>
+                        <span style="color:#7dd3fc;">.profile-header { background: linear-gradient(45deg, #ff69b4, #ff1493) !important; padding: 30px !important; border-radius: 10px !important; }</span>
+                    </div>
+                    <p style="font-size:12px;color:#666;margin-bottom:12px;">Add custom CSS to style any section of your profile. Use !important to override defaults.</p>
+                    <textarea id="customCSSInput" placeholder=".profile-info h1 { color: #ff69b4; font-size: 2em; }&#10;.profile-avatar { width: 120px; height: 120px; }&#10;/* Add your custom styles here */" class="css-textarea"></textarea>
+                    <div class="customization-actions">
+                        <button onclick="window.saveCustomization()" class="save-btn">Save</button>
+                        <button onclick="window.toggleCustomizationEdit()" class="cancel-btn">Cancel</button>
+                    </div>
+                </div>
+
+                <!-- Embeds Tab -->
+                <div id="customization-embeds" class="customization-tab-panel">
+                    <p style="font-size:12px;color:#666;margin-bottom:12px;">Add YouTube, Spotify, or other media. Paste the share/embed URL.</p>
+                    
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:6px;">Embed URL</label>
+                        <input type="text" id="embedURLInput" placeholder="e.g., https://www.youtube.com/watch?v=..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box;margin-bottom:8px;">
+                        <button onclick="window.addEmbed()" class="save-btn">Add Media</button>
+                    </div>
+
+                    <div id="embedsList" style="border-top:1px solid #eee;padding-top:12px;">
+                        <p style="font-size:12px;color:#999;text-align:center;">No embeds yet</p>
+                    </div>
+
+                    <div class="customization-actions" style="margin-top:16px;">
+                        <button onclick="window.toggleCustomizationEdit()" class="cancel-btn">Done</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Media Section (displays embeds) -->
+            <div id="profileMediaSection" style="display:none;" class="profile-media-section">
+                <h3>Media</h3>
+                <div id="profileMedia" class="profile-media-grid">
+                    <!-- Embeds displayed here -->
+                </div>
+            </div>
+
+            <!-- Followers/Following Modals (High Priority Display) -->
+            <div id="followersModal" class="modal" style="display:none;">
+                <div class="modal-content" style="width:90%; max-width:500px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h2 style="margin:0;">Followers</h2>
+                        <button onclick="document.getElementById('followersModal').style.display='none'" style="background:none; border:none; font-size:24px; cursor:pointer;">×</button>
+                    </div>
+                    <div id="followersList" style="max-height:500px; overflow-y:auto;">
+                        <p style="color:#999; text-align:center;">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="followingModal" class="modal" style="display:none;">
+                <div class="modal-content" style="width:90%; max-width:500px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h2 style="margin:0;">Following</h2>
+                        <button onclick="document.getElementById('followingModal').style.display='none'" style="background:none; border:none; font-size:24px; cursor:pointer;">×</button>
+                    </div>
+                    <div id="followingList" style="max-height:500px; overflow-y:auto;">
+                        <p style="color:#999; text-align:center;">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Unified Stats Row (replaced tabs) - OUTSIDE tab panels so it stays visible -->
+            <div class="profile-stats" style="flex-wrap: wrap; justify-content: center;">
+                <div class="stat stat-clickable" onclick="window.switchProfileTab('activity')" style="cursor: pointer;">
+                    <span class="stat-number" id="statPosts">0</span>
+                    <span class="stat-label">Posts</span>
+                </div>
+                <div class="stat stat-clickable" onclick="window.switchProfileTab('projects')" style="cursor: pointer;">
+                    <span class="stat-number" id="statProjects">0</span>
+                    <span class="stat-label">Projects</span>
+                </div>
+                <div class="stat stat-clickable" id="votesStatContainer" onclick="window.switchProfileTab('votes')" style="cursor: pointer; display:none;">
+                    <span class="stat-number" id="statVotes">0</span>
+                    <span class="stat-label">Votes</span>
+                </div>
+                <div class="stat stat-clickable" id="workStatContainer" onclick="window.switchProfileTab('work')" style="cursor: pointer; display:none;">
+                    <span class="stat-number" id="statWork">0</span>
+                    <span class="stat-label">Work</span>
+                </div>
+                <div class="stat follow-stat" id="followersStatContainer" style="display:none; cursor:pointer;" onclick="window.openFollowersModal()">
+                    <span class="stat-number" id="followersCount">0</span>
+                    <span class="stat-label">Followers</span>
+                </div>
+                <div class="stat follow-stat" id="followingStatContainer" style="display:none; cursor:pointer;" onclick="window.openFollowingModal()">
+                    <span class="stat-number" id="followingCount">0</span>
+                    <span class="stat-label">Following</span>
+                </div>
+                <div class="stat stat-clickable" id="editStatContainer" style="display:none; cursor:pointer;" onclick="window.openEditModal()">
+                    <span class="stat-number">⚙️</span>
+                    <span class="stat-label">Edit</span>
+                </div>
+            </div>
+
+            <!-- Tab Panels -->
+            <div class="profile-tab-panel active" id="profile-panel-activity">
+                <div id="profileActivity" class="profile-activity">
+                    <p class="profile-empty">Loading...</p>
+                </div>
+            </div>
+
+            <div class="profile-tab-panel" id="profile-panel-projects">
+                <div id="profileProjects" class="profile-projects">
+                    <p class="profile-empty">Loading...</p>
+                </div>
+            </div>
+
+            <div class="profile-tab-panel" id="profile-panel-votes">
+                <div id="profileVotes" class="profile-votes">
+                    <p class="profile-empty">Loading...</p>
+                </div>
+            </div>
+
+            <div class="profile-tab-panel" id="profile-panel-work">
+                <div id="profileWork" class="profile-work">
+                    <p class="profile-empty">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Settings Modal -->
+            <div id="settingsModal" class="modal" style="display:none;">
+                <div class="modal-content" style="width:90%; max-width:600px; max-height:90vh; overflow-y:auto;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h2 style="margin:0; color:#fff;">Account Settings</h2>
+                        <button onclick="AccountSettings.closeSettingsModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:#fff;">×</button>
+                    </div>
+
+                    <!-- Settings Tabs -->
+                    <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:1px solid #333;">
+                        <button class="settings-tab-btn active" onclick="AccountSettings.switchSettingsTab('security')" style="padding:12px 16px; background:none; border:none; color:#fff; cursor:pointer; border-bottom:2px solid transparent; font-weight:600;">🔒 Security</button>
+                        <button class="settings-tab-btn" onclick="AccountSettings.switchSettingsTab('privacy')" style="padding:12px 16px; background:none; border:none; color:#999; cursor:pointer; border-bottom:2px solid transparent; font-weight:600;">👁️ Privacy</button>
+                        <button class="settings-tab-btn" onclick="AccountSettings.switchSettingsTab('account')" style="padding:12px 16px; background:none; border:none; color:#999; cursor:pointer; border-bottom:2px solid transparent; font-weight:600;">⚙️ Account</button>
+                    </div>
+
+                    <!-- Security Tab -->
+                    <div id="settings-security" class="settings-tab-panel" style="display:block;">
+                        <!-- Email Verification -->
+                        <div style="background:#1a1a1a; border-radius:8px; padding:16px; margin-bottom:16px;">
+                            <h3 style="margin:0 0 12px 0; color:#fff; font-size:16px;">Email Verification</h3>
+                            <p style="margin:0 0 8px 0; color:#999; font-size:14px;">Email: <strong id="settingsEmail">—</strong></p>
+                            <p style="margin:0 0 12px 0; color:#999; font-size:14px;">Status: <strong id="settingsEmailVerified" style="color:#ef4444;">✗ Not Verified</strong></p>
+                            <button id="sendVerificationEmailBtn" onclick="AccountSettings.sendVerificationEmail()" style="padding:8px 16px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600; display:none;">📧 Send Verification Email</button>
+                        </div>
+
+                        <!-- Change Password -->
+                        <div style="background:#1a1a1a; border-radius:8px; padding:16px; margin-bottom:16px;">
+                            <h3 style="margin:0 0 12px 0; color:#fff; font-size:16px;">Change Password</h3>
+                            <input type="password" id="currentPassword" placeholder="Current password" style="width:100%; padding:10px; border:1px solid #333; border-radius:4px; background:#222; color:#fff; margin-bottom:10px; box-sizing:border-box; font-size:13px;">
+                            <input type="password" id="newPassword" placeholder="New password" style="width:100%; padding:10px; border:1px solid #333; border-radius:4px; background:#222; color:#fff; margin-bottom:10px; box-sizing:border-box; font-size:13px;">
+                            <input type="password" id="confirmPassword" placeholder="Confirm new password" style="width:100%; padding:10px; border:1px solid #333; border-radius:4px; background:#222; color:#fff; margin-bottom:10px; box-sizing:border-box; font-size:13px;">
+                            <button onclick="AccountSettings.changePassword()" style="width:100%; padding:10px; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600;">Update Password</button>
+                        </div>
+
+                        <!-- Two-Factor Authentication -->
+                        <div style="background:#1a1a1a; border-radius:8px; padding:16px;">
+                            <h3 style="margin:0 0 12px 0; color:#fff; font-size:16px;">Two-Factor Authentication</h3>
+                            <p style="margin:0 0 12px 0; color:#999; font-size:14px;">Status: <strong id="twoFAStatus" style="color:#999;">Disabled</strong></p>
+                            <p style="margin:0 0 12px 0; color:#888; font-size:12px;">Add an extra layer of security to your account using an authenticator app.</p>
+                            <div style="display:flex; gap:8px;">
+                                <button id="setupTwoFABtn" onclick="AccountSettings.setupTwoFA()" style="padding:8px 16px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600;">Enable 2FA</button>
+                                <button id="disableTwoFABtn" onclick="AccountSettings.disableTwoFA()" style="padding:8px 16px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600; display:none;">Disable 2FA</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Privacy Tab (placeholder) -->
+                    <div id="settings-privacy" class="settings-tab-panel" style="display:none;">
+                        <p style="color:#999; text-align:center; padding:20px;">Privacy settings coming soon</p>
+                    </div>
+
+                    <!-- Account Tab (placeholder) -->
+                    <div id="settings-account" class="settings-tab-panel" style="display:none;">
+                        <p style="color:#999; text-align:center; padding:20px;">Account management options coming soon</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="loading.js"></script>
+    <script src="colors.js"></script>
+    <script src="colorSettings.js"></script>
+    <script src="settings.js"></script>
+    <script src="votingEligibility.js"></script>
+    <script src="messaging.js"></script>
+    <script src="messagingUI.js"></script>
+    <script type="module" src="firebase.js"></script>
+    <script type="module" src="profile.js"></script>
+    <script src="sharing.js"></script>
+</body>
+</html>

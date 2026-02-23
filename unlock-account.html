@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unlock Account - Cloud Beacon</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .unlock-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .unlock-container h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .unlock-container p {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .status-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .status-icon.loading {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .status-icon.success {
+            animation: slideDown 0.5s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status-icon.error {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .button-group {
+            margin-top: 30px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0 10px;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            margin: 0 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .success-message {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .countdown {
+            margin-top: 20px;
+            color: #999;
+            font-size: 14px;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #999;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="unlock-container">
+        <div class="status-icon loading" id="statusIcon">⏳</div>
+        <h1 id="title">Verifying Unlock Link</h1>
+        <p id="message">Please wait while we verify your account unlock request...</p>
+        
+        <div class="error-message" id="errorMessage"></div>
+        <div class="success-message" id="successMessage"></div>
+
+        <div class="button-group">
+            <button class="btn btn-primary" id="redirectBtn" style="display: none;">Back to Login</button>
+            <button class="btn btn-secondary" id="homeBtn" style="display: none;">Go to Home</button>
+            <button class="btn btn-secondary" id="retryBtn" style="display: none;">Try Again</button>
+        </div>
+
+        <div class="countdown" id="countdown"></div>
+
+        <div class="footer">
+            <p>Cloud Beacon Security • Account Recovery</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { httpsCallable } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js';
+        import { loginWithCustomToken } from './auth.js';
+
+        // Get token from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        
+        const statusIcon = document.getElementById('statusIcon');
+        const title = document.getElementById('title');
+        const message = document.getElementById('message');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const redirectBtn = document.getElementById('redirectBtn');
+        const homeBtn = document.getElementById('homeBtn');
+        const retryBtn = document.getElementById('retryBtn');
+        const countdown = document.getElementById('countdown');
+
+        // Verify the unlock token
+        async function verifyUnlockToken() {
+            if (!token) {
+                showError('No unlock token provided. Please check your email link.');
+                return;
+            }
+
+            try {
+                // Call the Firebase Cloud Function to verify the token
+                const response = await fetch(
+                    `https://us-central1-cloudbeacon-e61f6.cloudfunctions.net/unlockAccount?token=${encodeURIComponent(token)}`
+                );
+                
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Success! Use the custom token to log in
+                    try {
+                        await loginWithCustomToken(result.customToken);
+                        showSuccess(result.email);
+                    } catch (loginError) {
+                        console.error('[Unlock] Login error:', loginError);
+                        showError('Account unlocked, but login failed. Please go back and log in manually.');
+                    }
+                } else {
+                    showError(result.error || 'Failed to unlock account. Please try again.');
+                }
+            } catch (error) {
+                console.error('[Unlock] Error:', error);
+                showError('An error occurred while verifying your unlock request. Please try again.');
+            }
+        }
+
+        function showSuccess(email) {
+            statusIcon.textContent = '✅';
+            statusIcon.classList.remove('loading');
+            statusIcon.classList.add('success');
+            
+            title.textContent = 'Account Unlocked!';
+            message.textContent = `Your Cloud Beacon account (${email}) has been successfully unlocked and you are now logged in.`;
+            
+            successMessage.textContent = 'Redirecting you to the application...';
+            successMessage.classList.add('show');
+            
+            homeBtn.style.display = 'inline-block';
+            homeBtn.textContent = 'Go to Dashboard';
+            homeBtn.onclick = () => window.location.href = '/index.html';
+            
+            // Auto-redirect after 3 seconds
+            let secondsLeft = 3;
+            countdown.style.display = 'block';
+            countdown.textContent = `Redirecting in ${secondsLeft} seconds...`;
+            
+            const countdownInterval = setInterval(() => {
+                secondsLeft--;
+                if (secondsLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    window.location.href = '/index.html';
+                } else {
+                    countdown.textContent = `Redirecting in ${secondsLeft} seconds...`;
+                }
+            }, 1000);
+        }
+
+        function showError(errorText) {
+            statusIcon.textContent = '❌';
+            statusIcon.classList.remove('loading');
+            statusIcon.classList.add('error');
+            
+            title.textContent = 'Unlock Failed';
+            message.textContent = 'We couldn\'t unlock your account with this link.';
+            
+            errorMessage.textContent = errorText;
+            errorMessage.classList.add('show');
+            
+            retryBtn.style.display = 'inline-block';
+            homeBtn.style.display = 'inline-block';
+            
+            retryBtn.textContent = 'Try Again';
+            retryBtn.onclick = () => {
+                statusIcon.textContent = '⏳';
+                statusIcon.classList.add('loading');
+                errorMessage.classList.remove('show');
+                verifyUnlockToken();
+            };
+            
+            homeBtn.textContent = 'Return to Login';
+            homeBtn.onclick = () => window.location.href = '/index.html#login';
+        }
+
+        // Start verification when page loads
+        verifyUnlockToken();
+    </script>
+</body>
+</html>
