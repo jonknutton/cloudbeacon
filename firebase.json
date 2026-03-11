@@ -29,7 +29,7 @@
     ],
     "rewrites": [
       {
-        "source": "**",
+        "source": "!{EM/**,api/**,sitemap.xml,robots.txt}",
         "destination": "/index.html"
       }
     ]
