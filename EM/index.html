@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earthquake Visualization - Cloud Beacon</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="container">        
+        <div id="timeline-controls">
+            <div class="timeline-header">
+                <button id="play-btn" class="timeline-btn" title="Play">▶</button>
+                <button id="prev-btn" class="timeline-btn" title="Previous">⏮</button>
+                <div class="date-display">
+                    <button id="date-selector-btn" title="Change Date">📅</button>
+                </div>
+                
+                <button id="next-btn" class="timeline-btn" title="Next">⏭</button>
+                <button id="pause-btn" class="timeline-btn" style="display:none;" title="Pause">⏸</button>
+            </div>
+            <div class="timeline-mode">
+                <label>View Mode:</label>
+                <select id="timeline-mode">
+                    <option value="accumulate">Accumulating (stays on screen)</option>
+                    <option value="sequential">Sequential (fades out)</option>
+                </select>
+            </div>
+            
+            <div class="timeline-speed">
+                <label for="playback-speed">Playback Speed:</label>
+                <input type="range" id="playback-speed" min="0.5" max="5" step="0.5" value="1">
+                <span id="speed-display">1.0x</span>
+            </div>
+            
+            <div class="timeline-progress">
+                <div class="progress-bar">
+                    <div id="progress-fill"></div>
+                </div>
+                <p id="time-range-display">No data</p>
+            </div>
+        </div>
+
+        <div id="date-picker-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3>Select Date</h3>
+                <input type="date" id="date-picker-input">
+                <div class="modal-buttons">
+                    <button class="modal-btn confirm" id="date-picker-confirm">Confirm</button>
+                    <button class="modal-btn cancel" id="date-picker-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+        <span id="current-date">Select Time</span>
+        <div id="controls-panel">
+            <h2>Earthquake Map</h2>
+            
+            <div class="control-group">
+                <label>Visualization Mode:</label>
+                <select id="viz-mode">
+                    <option value="recent" selected>Recent Activity</option>
+                    <option value="heatmap-magnitude">Magnitude Density Map</option>
+                    <option value="heatmap-frequency">Frequency Map</option>
+                </select>
+            </div>
+
+            <div class="control-group" id="recent-controls" style="display: block;">
+                <label for="time-range">Time Range:</label>
+                <select id="time-range">
+                    <option value="week">Past Week</option>
+                    <option value="month" selected>Past Month</option>
+                    <option value="all">All Available</option>
+                </select>
+            </div>
+
+            <div class="control-group" id="heatmap-controls" style="display: none;">
+                <label for="heatmap-block-size">Block Size (degrees):</label>
+                <input type="range" id="heatmap-block-size" min="0.5" max="10" step="0.5" value="2">
+                <span id="block-size-display">2.0</span>
+            </div>
+
+            <div class="control-group" id="historic-data-controls" style="display: none;">
+                <label for="historic-csv-upload">Load Historic Data (CSV):</label>
+                <input type="file" id="historic-csv-upload" accept=".csv" title="Upload earthquake CSV file">
+                <button id="load-historic-btn">Generate Heatmap from Data</button>
+                <div id="historic-status"></div>
+            </div>
+
+            <div class="control-group">
+                <label for="magnitude-filter">Minimum Magnitude:</label>
+                <input type="range" id="magnitude-filter" min="2" max="8" step="0.1" value="2">
+                <span id="mag-display">2.0</span>
+            </div>
+
+            <div class="control-group">
+                <label for="earthquake-scale">Earthquake Size Scale:</label>
+                <input type="range" id="earthquake-scale" min="0.2" max="3" step="0.1" value="1">
+                <span id="scale-display">1.0x</span>
+            </div>
+
+            <div class="control-group">
+                <label for="depth-exaggeration">Depth Exaggeration:</label>
+                <input type="range" id="depth-exaggeration" min="1" max="5" step="0.1" value="1">
+                <span id="depth-display">1.0x</span>
+            </div>
+
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="show-labels" checked>
+                    Show Location Labels
+                </label>
+                <label>
+                    <input type="checkbox" id="auto-rotate" checked>
+                    Auto Rotate
+                </label>
+            </div>
+
+            <div class="control-group">
+                <button id="load-data-btn">Load Latest Data</button>
+                <div id="status-message"></div>
+            </div>
+
+            <div class="stats-panel">
+                <h3>Stats</h3>
+                <p>Earthquakes: <span id="quake-count">0</span></p>
+                <p>Magnitude Range: <span id="mag-range">-</span></p>
+                <p>Max Depth: <span id="max-depth">-</span></p>
+            </div>
+        </div>  
+        <div id="canvas-container"></div>
+        <div id="info-panel">
+            <h3>Earthquake Details</h3>
+            <div id="quake-info"></div>
+        </div>
+    </div>
+
+        
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="js/usgs-fetcher.js"></script>
+    <script src="js/earth-3d.js"></script>
+    <script src="js/heatmap-calculator.js"></script>
+    <script src="js/heatmap-renderer.js"></script>
+    <script src="js/csv-loader.js"></script>
+    <script src="js/heatmap-controls.js"></script>
+    <script src="js/controls.js"></script>
+</body>
+</html>
