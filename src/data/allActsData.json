@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-02-24T19:46:28.860Z",
+  "totalActs": 0,
+  "pagesProcessed": 1,
+  "acts": [],
+  "importInstructions": "\n1. Copy the entire 'acts' array from this file\n2. Open governance.html in your browser\n3. Open Developer Console (F12)\n4. Run: window.importAllLegislationBills(allActsData, 'preview')\n5. Review the preview, then run: window.importAllLegislationBills(allActsData, 'execute')\n6. Wait for import to complete\n7. Refresh the page and expand \"All Legislation\" to see all Acts\n        "
+}
