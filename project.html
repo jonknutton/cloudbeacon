@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project — Cloud Beacon</title>
+
+    <!-- Open Graph / Social sharing meta tags (set dynamically by projectpage.js) -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Cloud Beacon">
+    <meta property="og:title" content="Project — Cloud Beacon">
+    <meta property="og:description" content="A civic project on Cloud Beacon.">
+    <meta property="og:image" content="">
+    <meta property="og:url" content="">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Project — Cloud Beacon">
+    <meta name="twitter:description" content="A civic project on Cloud Beacon.">
+    <meta name="twitter:image" content="">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="project.css">
+</head>
+<body>
+    <header class="site-header">
+        <a href="index.html" class="site-logo">Cloud Beacon</a>
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="translator/translator.html">Translator</a>
+        </nav>
+    </header>
+
+    <main class="folder-workspace">
+        <div class="folder-shell">
+
+            <!-- Primary tab row: 10 tabs (Votes and Petition added for legislation) -->
+            <div class="tab-row" id="primaryTabs">
+                <button class="folder-tab active" data-tab="overview"  style="--tab-color:#f59f00;" onclick="switchTab('overview')">Overview</button>
+                <button class="folder-tab"        data-tab="team"      style="--tab-color:#0ca678;" onclick="switchTab('team')">Team</button>
+                <button class="folder-tab"        data-tab="plan"      style="--tab-color:#3b82f6;" onclick="switchTab('plan')">Plan</button>
+                <button class="folder-tab"        data-tab="fund"      style="--tab-color:#22c55e;" onclick="switchTab('fund')">Fund</button>
+                <button class="folder-tab"        data-tab="files"     style="--tab-color:#a855f7;" onclick="switchTab('files')">Files</button>
+                <button class="folder-tab"        data-tab="updates"   style="--tab-color:#f97316;" onclick="switchTab('updates')">Updates</button>
+                <button class="folder-tab"        data-tab="chat"      style="--tab-color:#ef4444;" onclick="switchTab('chat')">Chat</button>
+                <button class="folder-tab"        data-tab="votes"     style="--tab-color:#06b6d4;" onclick="switchTab('votes')">Votes</button>
+                <button class="folder-tab"        data-tab="petition"  style="--tab-color:#8b5cf6;" onclick="switchTab('petition')">Petition</button>
+                <button class="folder-tab"        data-tab="log"       style="--tab-color:#8b5cf6;" onclick="switchTab('log')">Log</button>
+            </div>
+
+            <!-- A4 paper -->
+            <div class="paper-sheet">
+
+                <!-- Nested sub-tabs (populated by JS) -->
+                <div class="sub-tab-row" id="subTabRow"></div>
+
+                <!-- ===================== OVERVIEW ===================== -->
+                <div class="tab-panel active" id="panel-overview">
+
+                    <!-- Title + status -->
+                    <div class="panel-header">
+                        <div style="flex:1">
+                            <div id="projectCategoryBadge" class="category-badge"></div>
+                            <div class="editable-field" id="titleField">
+                                <h1 id="projectTitle" class="project-title">Loading...</h1>
+                                <button class="edit-btn" onclick="startEdit('title')">✎</button>
+                            </div>
+                            <div class="edit-input-row" id="titleEdit" style="display:none;">
+                                <input type="text" id="titleInput">
+                                <button class="save-btn" onclick="saveField('title')">Save</button>
+                                <button class="cancel-btn" onclick="cancelEdit('title')">✕</button>
+                            </div>
+                        </div>
+                        <div class="status-block">
+                            <div id="statusDisplay" class="status-badge status-active" onclick="startEdit('status')">Active</div>
+                            <select id="statusEdit" class="status-select" style="display:none;" onchange="saveField('status')">
+                                <option>Active</option>
+                                <option>In Review</option>
+                                <option>Approved</option>
+                                <option>Rejected</option>
+                                <option>Complete</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Archived Banner -->
+                    <div id="archivedBanner" style="display:none;background:#d9d9d9;color:#444;padding:12px 16px;border-radius:4px;margin-bottom:16px;border-left:4px solid #999;font-weight:600;text-align:center;">
+                        📦 This project is archived and cannot be edited.
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- Header Picture -->
+                    <div class="editable-section" style="margin-bottom:20px;">
+                        <div class="section-header-row">
+                            <h3 class="section-label">Header Picture</h3>
+                            <button class="edit-btn small" onclick="startEdit('headerPicture')">✎ Edit</button>
+                        </div>
+                        <div id="projectHeaderPicture" style="width:100%;height:420px;background-color:#f0f0f0;border-radius:6px;margin-bottom:12px;background-size:cover;background-position:center;display:none;"></div>
+                        <p id="headerPictureDisplay" class="description-text muted" style="font-size:12px;">No header picture set. Click edit to upload an image.</p>
+                        <div id="headerPictureEdit" style="display:none;margin-top:12px;">
+                            <label style="font-size:12px; color:#444; display:flex; align-items:center; gap:6px; cursor:pointer; margin-bottom:12px;">
+                                <input type="file" id="headerPictureInput" accept="image/*" style="display:none;" onchange="handleImageSelect(event, 'headerPicture')">
+                                <span style="background:#f59f00; color:white; padding:8px 12px; border-radius:3px; font-weight:600; font-size:12px;">📷 Upload Image</span>
+                                <span id="headerPictureName" style="font-size:11px; color:#666;"></span>
+                            </label>
+                            <div class="edit-actions" style="margin-top:8px;">
+                                <button class="save-btn" onclick="saveField('headerPicture')">Save</button>
+                                <button class="cancel-btn" onclick="cancelEdit('headerPicture')">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- Vote section: ABOVE problem/solution -->
+                    <div class="vote-section">
+                        <h3 class="section-label">Community Vote</h3>
+
+                        <div class="vote-bar-group">
+                            <div class="vote-bar-label">
+                                <span>Approval</span>
+                                <span id="approvalPct">—</span>
+                            </div>
+                            <div class="vote-bar-track">
+                                <div class="vote-bar-fill" id="approvalBar" style="width:0%"></div>
+                            </div>
+                            <div class="vote-bar-sublabel">
+                                <span id="approvalCaption">No votes yet</span>
+                            </div>
+                        </div>
+
+                        <div class="vote-bar-group">
+                            <div class="vote-bar-label">
+                                <span>Participation</span>
+                                <span id="participationPct">0%</span>
+                            </div>
+                            <div class="vote-bar-track">
+                                <div class="vote-bar-fill" id="participationBar" style="width:0%"></div>
+                            </div>
+                            <div class="vote-bar-sublabel">
+                                <span id="participationCaption">0 of <span id="thresholdDisplay">1</span> target votes</span>
+                                <div class="threshold-edit">
+                                    <span>Target:</span>
+                                    <input type="number" id="thresholdInput" value="1" min="1" class="threshold-input" onchange="saveThreshold()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="vote-controls">
+                            <button class="vote-action-btn up" onclick="handleProjectVote('up')">▲ Support</button>
+                            <div class="vote-count-block">
+                                <span id="projectVotes" class="vote-number">0</span>
+                                <span class="vote-label">net votes</span>
+                            </div>
+                            <button class="vote-action-btn down" onclick="handleProjectVote('down')">▼ Oppose</button>
+                        </div>
+                        <div class="vote-stats">
+                            <span id="voterCount">0 voters</span>
+                            <span class="vote-stat-sep">·</span>
+                            <span id="upvoteCount">0 support</span>
+                            <span class="vote-stat-sep">·</span>
+                            <span id="downvoteCount">0 oppose</span>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- Join / Follow / Repost buttons -->
+                    <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                        <button id="joinProjectBtn" class="save-btn" onclick="openJoinProjectForm()" style="flex:1;">Request to Join</button>
+                        <button id="followProjectBtn" class="cancel-btn" onclick="handleFollowProject()" style="flex:1;">Follow Project</button>
+                        <button id="repostProjectBtn" class="post-action-btn" onclick="repostProject()" style="flex:1; background:#3b82f6; color:white;">🔁 Repost</button>
+                        <button id="archiveProjectBtn" class="cancel-btn" onclick="archiveProject()" style="flex:1; display:none;">📦 Archive</button>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- Description (for all projects, but content changes by category) -->
+                    <div class="editable-section" id="descriptionSection">
+                        <div class="section-header-row">
+                            <h3 class="section-label">Description</h3>
+                            <button class="edit-btn small" onclick="startEdit('description')">✎ Edit</button>
+                        </div>
+                        <p id="projectDescription" class="description-text muted">No description yet.</p>
+                        <div id="descriptionEdit" style="display:none;">
+                            <textarea id="descriptionInput" rows="3"></textarea>
+                            <div class="edit-actions">
+                                <button class="save-btn" onclick="saveField('description')">Save</button>
+                                <button class="cancel-btn" onclick="cancelEdit('description')">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Problem section (for non-Law projects) -->
+                    <div class="editable-section" id="problemSection" style="display:none;">
+                        <div class="section-header-row">
+                            <h3 class="section-label">Problem</h3>
+                            <button class="edit-btn small" onclick="startEdit('description')">✎ Edit</button>
+                        </div>
+                        <p id="projectProblem" class="description-text muted">No description yet.</p>
+                        <div id="problemEdit" style="display:none;">
+                            <textarea id="problemInput" rows="3"></textarea>
+                            <div class="edit-actions">
+                                <button class="save-btn" onclick="saveField('description')">Save</button>
+                                <button class="cancel-btn" onclick="cancelEdit('description')">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Proposed Solution section (for non-Law projects) -->
+                    <div class="editable-section" id="solutionSection" style="display:none;">
+                        <div class="section-header-row">
+                            <h3 class="section-label">Proposed Solution</h3>
+                            <button class="edit-btn small" onclick="startEdit('solution')">✎ Edit</button>
+                        </div>
+                        <p id="projectSolution" class="description-text muted">No solution added yet.</p>
+                        <div id="solutionEdit" style="display:none;">
+                            <textarea id="solutionInput" rows="3"></textarea>
+                            <div class="edit-actions">
+                                <button class="save-btn" onclick="saveField('solution')">Save</button>
+                                <button class="cancel-btn" onclick="cancelEdit('solution')">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- Bill Info section (for legislation only) -->
+                    <div id="billInfoSection" style="display:none;">
+                        <div class="overview-meta-grid">
+                            <div class="meta-card">
+                                <div class="meta-label">Bill Stage</div>
+                                <div class="meta-value" id="billStage">—</div>
+                            </div>
+                            <div class="meta-card">
+                                <div class="meta-label">Categories</div>
+                                <div class="meta-value" id="billCategories">—</div>
+                            </div>
+                            <div class="meta-card">
+                                <div class="meta-label">Last Updated</div>
+                                <div class="meta-value" id="billLastUpdated">—</div>
+                            </div>
+                            <div class="meta-card">
+                                <div class="meta-label">Bill ID</div>
+                                <div class="meta-value" id="billId">—</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- Meta cards - will update dynamically based on category -->
+                    <div class="overview-meta-grid" id="metaGrid">
+                        <!-- Populated by JS -->
+                    </div>
+
+                </div>
+
+                <!-- ===================== TEAM ===================== -->
+                <div class="tab-panel" id="panel-team">
+                    <div id="subpanel-members" class="subpanel active">
+                        <div class="section-header-row" style="margin-bottom:20px;">
+                            <h2 class="panel-title" style="margin:0;">Team Members</h2>
+                            <button class="edit-btn small" onclick="openTeamModal()">+ Add Member</button>
+                        </div>
+                        <div id="teamGrid" class="team-grid"></div>
+                    </div>
+                    <div id="subpanel-structure" class="subpanel">
+                        <p class="placeholder-text">Org chart / team structure coming soon.</p>
+                    </div>
+                </div>
+
+                <!-- ===================== PLAN ===================== -->
+                <div class="tab-panel" id="panel-plan">
+                    
+                    <!-- Overview subtab -->
+                    <div id="subpanel-overview" class="subpanel active">
+                        <h3 class="section-label">Work Breakdown Structure</h3>
+                        
+                        <!-- WBS Description -->
+                        <div class="wbs-description-block">
+                            <p id="wbsDescription" class="description-text muted">No WBS description yet.</p>
+                            <button class="edit-btn small" onclick="startEdit('wbsDesc')">✎ Edit</button>
+                            <div id="wbsDescEdit" style="display:none;margin-top:10px;">
+                                <textarea id="wbsDescInput" rows="3"></textarea>
+                                <div class="edit-actions">
+                                    <button class="save-btn" onclick="saveField('wbsDesc')">Save</button>
+                                    <button class="cancel-btn" onclick="cancelEdit('wbsDesc')">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <!-- Collapsible WBS Tree -->
+                        <div id="wbsTree" class="wbs-tree">
+                            <!-- Activities and tasks populated by JS -->
+                        </div>
+
+                        <!-- Add Activity button -->
+                        <button class="wbs-add-activity-btn" onclick="startAddActivity()">+ Add Activity</button>
+                        <div id="addActivityForm" class="add-activity-form" style="display:none;">
+                            <input type="text" id="newActivityTitle" placeholder="Activity name (e.g., Design Phase, Development)...">
+                            <div style="display:flex;gap:8px;margin-top:8px;">
+                                <button class="save-btn" style="flex:1;" onclick="confirmAddActivity()">Add</button>
+                                <button class="cancel-btn" style="flex:1;" onclick="cancelAddActivity()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tasks subtab -->
+                    <div id="subpanel-tasks" class="subpanel">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                            <h3 class="section-label" style="margin:0;">All Tasks</h3>
+                            <button class="edit-btn small" onclick="openAddTaskModal()">+ New Task</button>
+                        </div>
+
+                        <div class="tasks-list-container">
+                            <div id="tasksTableBody" class="tasks-list">
+                                <!-- Tasks populated by JS -->
+                            </div>
+                        </div>
+
+                        <p id="noTasksMessage" class="placeholder-text">No tasks yet. Create one to get started.</p>
+                    </div>
+
+                    <!-- Gantt subtab -->
+                    <div id="subpanel-gantt" class="subpanel">
+                        <div style="padding: 20px; margin-bottom: 20px;">
+                            <p style="font-size: 12px; color: #888; margin-bottom: 12px;">Click on any task bar to jump to Tasks tab and see details.</p>
+                        </div>
+                        <div id="ganttChart" class="gantt-chart">
+                            <p class="placeholder-text">Loading Gantt chart...</p>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ===================== FUND (formerly Cost) ===================== -->
+                <div class="tab-panel" id="panel-fund">
+                    <h2 class="panel-title">Fund</h2>
+                    <div class="divider"></div>
+                    <div id="subpanel-fund-overview" class="subpanel active">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
+                            <div style="background:#f5f4f0;padding:12px;border-radius:8px;border:1px solid #eae8e2;">
+                                <div style="font-size:12px;color:#666;margin-bottom:6px;">Total Cost</div>
+                                <div id="fundTotal" style="font-weight:700;font-size:18px;">—</div>
+                            </div>
+                            <div style="background:#f5f4f0;padding:12px;border-radius:8px;border:1px solid #eae8e2;">
+                                <div style="font-size:12px;color:#666;margin-bottom:6px;">Funding (received)</div>
+                                <div id="fundReceived" style="font-weight:700;font-size:18px;">—</div>
+                                <div style="font-size:12px;color:#888;margin-top:6px;">Deficit / Surplus</div>
+                                <div id="fundDeficit" style="font-weight:600;font-size:14px;">—</div>
+                            </div>
+                        </div>
+                        <div style="margin-top:14px;">
+                            <h4 style="margin:0 0 8px 0;">Cost breakdown</h4>
+                            <div id="fundBreakdown" style="overflow:auto;border:1px solid #eae8e2;border-radius:6px;padding:8px;background:#fff;"></div>
+                        </div>
+                    </div>
+                    <div id="subpanel-fund-bid" class="subpanel">
+                        <h4 style="margin-top:0;">Open Tenders</h4>
+                        <div id="fundBidList" style="margin-top:8px;overflow:auto;border:1px solid #eae8e2;border-radius:6px;padding:8px;background:#fff;"></div>
+                    </div>
+                    <div id="subpanel-fund-invest" class="subpanel">
+                        <h4 style="margin-top:0;">Invest / Support</h4>
+                        <div id="fundInvestForm" style="margin-top:8px;max-width:420px;">
+                            <label>Amount</label>
+                            <input id="donationAmount" type="number" min="1" placeholder="10" style="width:100%;padding:8px;margin:6px 0;border:1px solid #ddd;border-radius:6px;">
+                            <label>Your name (optional)</label>
+                            <input id="donorName" type="text" placeholder="Name or organisation" style="width:100%;padding:8px;margin:6px 0;border:1px solid #ddd;border-radius:6px;">
+                            <div style="display:flex;gap:8px;margin-top:8px;">
+                                <button class="save-btn" onclick="confirmDonate()">Pledge</button>
+                                <button class="cancel-btn" onclick="renderFundInvest()">Refresh</button>
+                            </div>
+                            <div id="donationsList" style="margin-top:12px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===================== FILES ===================== -->
+                <div class="tab-panel" id="panel-files">
+                    <h2 class="panel-title">Files</h2>
+                    <div class="divider"></div>
+
+                    <!-- Breadcrumb Navigation -->
+                    <div class="file-breadcrumb">
+                        <button class="breadcrumb-btn" onclick="navigateToFolder('')">📁 Root</button>
+                        <span id="breadcrumbPath" style="color: #bbb; font-size: 12px;"></span>
+                    </div>
+
+                    <!-- Upload Area -->
+                    <div class="upload-area" id="uploadArea">
+                        <div style="text-align: center;">
+                            <div id="uploadAreaLabel" style="font-size:12px; color:#3b82f6; font-weight:600; margin-bottom:8px; display:none;"></div>
+                            <p style="margin:0 0 8px; color:#666; font-size:13px;">Drag files here to upload</p>
+                            <label class="file-input-label">
+                                <input type="file" id="fileInput" multiple style="display:none;" onchange="handleFileSelect(event)">
+                                <span style="background:#3b82f6; color:white; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:12px; display:inline-block;">Choose Files</span>
+                            </label>
+                            <div style="margin-top:8px;">
+                                <input type="text" id="newFolderName" placeholder="Folder name..." style="padding:6px; font-size:12px; border:1px solid #ddd; border-radius:4px; width:120px;">
+                                <button onclick="createNewFolder()" style="padding:6px 10px; font-size:12px; background:#22c55e; color:white; border:none; border-radius:4px; cursor:pointer; margin-left:4px;">New Folder</button>
+                            </div>
+                            <p style="margin:8px 0 0; font-size:11px; color:#999;">📌 Max file size: 750 KB per file (stored as metadata)</p>
+                        </div>
+                    </div>
+
+                    <!-- File Structure Tree -->
+                    <div id="fileTree" class="file-tree"></div>
+
+                    <!-- Upload Progress -->
+                    <div id="uploadProgress" style="display:none; margin-top:12px; padding:12px; background:#f0f0f0; border-radius:4px;">
+                        <div style="font-size:12px; margin-bottom:4px;">Uploading: <span id="uploadStatus">0%</span></div>
+                        <div style="width:100%; height:6px; background:#ddd; border-radius:3px; overflow:hidden;">
+                            <div id="uploadProgressBar" style="width:0%; height:100%; background:#3b82f6; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===================== UPDATES ===================== -->
+                <div class="tab-panel" id="panel-updates">
+                    <h2 class="panel-title">Updates</h2>
+                    <div class="divider"></div>
+                    
+                    <!-- Public Updates Subtab -->
+                    <div id="subpanel-updates-public" class="subpanel active">
+                        <div style="margin-bottom:16px; padding:12px; background:#eff6ff; border-left:3px solid #3b82f6; border-radius:4px; font-size:12px; color:#444;">
+                            📢 <strong>Public Updates</strong> are shared with the entire community and appear on the main project feed/timeline. They're great for major milestones and announcements.
+                        </div>
+                        <div id="publicUpdatesList" class="updates-list"></div>
+                        <div id="addPublicUpdateSection" class="add-item-row stack" style="display:none;">
+                            <input type="text" id="newPublicUpdateTitle" placeholder="Update title..." maxlength="100">
+                            <textarea id="newPublicUpdateBody" placeholder="Share an update with the community..." style="min-height:80px;"></textarea>
+                            
+                            <!-- Image upload -->
+                            <div style="padding:8px; background:#f9f9f9; border-radius:4px; border:1px solid #e0e0e0;">
+                                <label style="font-size:12px; color:#444; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                    <input type="file" id="newPublicUpdateImage" accept="image/*" style="display:none;" onchange="handleImageSelect(event, 'public')">
+                                    <span style="background:#3b82f6; color:white; padding:6px 10px; border-radius:3px; font-weight:600; font-size:12px;">📷 Add Image</span>
+                                    <span id="publicImageName" style="font-size:11px; color:#666;"></span>
+                                </label>
+                            </div>
+                            
+                            <!-- Media URLs (collapsed) -->
+                            <div style="padding:8px; background:#f9f9f9; border-radius:4px; border:1px solid #e0e0e0;">
+                                <button type="button" onclick="toggleMediaForm('public')" style="background:none; border:none; cursor:pointer; font-size:12px; color:#3b82f6; font-weight:600; padding:0; text-align:left; width:100%;">
+                                    ➕ Add Video / Link
+                                </button>
+                                <div id="publicMediaForm" style="display:none; margin-top:8px; gap:8px; display:none;">
+                                    <input type="text" id="newPublicUpdateYoutube" placeholder="🎬 YouTube URL (optional)..." style="width:100%; padding:6px; font-size:12px; border:1px solid #ddd; border-radius:3px;">
+                                    <input type="text" id="newPublicUpdateVideo" placeholder="🎥 Video URL (optional)..." style="width:100%; padding:6px; font-size:12px; border:1px solid #ddd; border-radius:3px;">
+                                    <input type="text" id="newPublicUpdateLink" placeholder="🔗 Link (optional)..." style="width:100%; padding:6px; font-size:12px; border:1px solid #ddd; border-radius:3px;">
+                                </div>
+                            </div>
+                            
+                            <button onclick="handleAddPublicUpdate()" style="background:#3b82f6; color:white; padding:10px 12px; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600;">Post Public Update</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Internal Communications Subtab -->
+                    <div id="subpanel-updates-internal" class="subpanel">
+                        <div style="margin-bottom:16px; padding:12px; background:#fef3c7; border-left:3px solid #f59f00; border-radius:4px; font-size:12px; color:#444;">
+                            🔒 <strong>Internal Communications</strong> are visible only to team members. Use this for internal discussions, work notes, and decisions. These do NOT appear on the public timeline.
+                        </div>
+                        <div id="internalUpdatesList" class="updates-list"></div>
+                        <div id="addInternalUpdateSection" class="add-item-row stack" style="display:none;">
+                            <input type="text" id="newInternalUpdateTitle" placeholder="Communication title..." maxlength="100">
+                            <textarea id="newInternalUpdateBody" placeholder="Internal note or discussion..." style="min-height:80px;"></textarea>
+                            
+                            <!-- Image upload -->
+                            <div style="padding:8px; background:#f9f9f9; border-radius:4px; border:1px solid #e0e0e0;">
+                                <label style="font-size:12px; color:#444; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                    <input type="file" id="newInternalUpdateImage" accept="image/*" style="display:none;" onchange="handleImageSelect(event, 'internal')">
+                                    <span style="background:#f59f00; color:white; padding:6px 10px; border-radius:3px; font-weight:600; font-size:12px;">📷 Add Image</span>
+                                    <span id="internalImageName" style="font-size:11px; color:#666;"></span>
+                                </label>
+                            </div>
+                            
+                            <!-- Media URLs (collapsed) -->
+                            <div style="padding:8px; background:#f9f9f9; border-radius:4px; border:1px solid #e0e0e0;">
+                                <button type="button" onclick="toggleMediaForm('internal')" style="background:none; border:none; cursor:pointer; font-size:12px; color:#f59f00; font-weight:600; padding:0; text-align:left; width:100%;">
+                                    ➕ Add Video / Link
+                                </button>
+                                <div id="internalMediaForm" style="display:none; margin-top:8px; gap:8px; display:none;">
+                                    <input type="text" id="newInternalUpdateYoutube" placeholder="🎬 YouTube URL (optional)..." style="width:100%; padding:6px; font-size:12px; border:1px solid #ddd; border-radius:3px;">
+                                    <input type="text" id="newInternalUpdateVideo" placeholder="🎥 Video URL (optional)..." style="width:100%; padding:6px; font-size:12px; border:1px solid #ddd; border-radius:3px;">
+                                    <input type="text" id="newInternalUpdateLink" placeholder="🔗 Link (optional)..." style="width:100%; padding:6px; font-size:12px; border:1px solid #ddd; border-radius:3px;">
+                                </div>
+                            </div>
+                            
+                            <button onclick="handleAddInternalUpdate()" style="background:#f59f00; color:white; padding:10px 12px; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600;">Post Internal Update</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===================== CHAT ===================== -->
+                <div class="tab-panel" id="panel-chat">
+                    <h2 class="panel-title">Chat</h2>
+                    <div class="divider"></div>
+                    <div id="chatList" class="chat-list"></div>
+                    <div id="addChatSection" class="add-item-row" style="display:none;">
+                        <input type="text" id="newChatMessage" placeholder="Write a comment...">
+                        <button onclick="handleAddChat()">Send</button>
+                    </div>
+                </div>
+
+                <!-- ===================== VOTES (for Legislation) ===================== -->
+                <div class="tab-panel" id="panel-votes">
+                    <h2 class="panel-title">Division Votes</h2>
+                    <div class="divider"></div>
+                    
+                    <!-- Division Summary -->
+                    <div id="divisionSummary" class="overview-meta-grid" style="margin-bottom:20px;">
+                        <!-- Populated by JS -->
+                    </div>
+                    
+                    <h3 class="section-label">Vote Breakdown</h3>
+                    <div id="divisionList" class="change-log"></div>
+                </div>
+
+                <!-- ===================== PETITION (for Legislation) ===================== -->
+                <div class="tab-panel" id="panel-petition">
+                    <h2 class="panel-title">Related Petitions</h2>
+                    <div class="divider"></div>
+                    
+                    <div style="margin-bottom:20px;">
+                        <button class="save-btn" onclick="searchRelatedPetitions()">🔍 Search for Related Petitions</button>
+                    </div>
+                    
+                    <div id="petitionList" class="change-log">
+                        <p class="placeholder-text">No petitions linked yet. Click search to find related petitions.</p>
+                    </div>
+                </div>
+
+                <!-- ===================== LOG (Change + Votes) ===================== -->
+                <div class="tab-panel" id="panel-log">
+                    <h2 class="panel-title">Log</h2>
+                    <div class="divider"></div>
+                    
+                    <!-- Change Subtab -->
+                    <div id="subpanel-log-change" class="subpanel active">
+                        <div style="font-size:12px; color:#666; margin-bottom:16px;">All edits to project details are recorded here for transparency and audit purposes.</div>
+                        <div id="changeLog" class="change-log" style="font-size:13px;"></div>
+                    </div>
+                    
+                    <!-- Votes Subtab -->
+                    <div id="subpanel-log-votes" class="subpanel">
+                        <div style="font-size:12px; color:#666; margin-bottom:16px;">Vote history. Show mutual followers' names where available.</div>
+                        <div style="overflow-x:auto;">
+                            <table id="votesTable" style="width:100%; border-collapse:collapse; font-size:13px;">
+                                <thead>
+                                    <tr style="border-bottom:2px solid #ddd; background:#f5f5f5;">
+                                        <th style="padding:10px; text-align:left; font-weight:600; color:#333;">User ID / Name</th>
+                                        <th style="padding:10px; text-align:center; font-weight:600; color:#333;">Vote</th>
+                                        <th style="padding:10px; text-align:left; font-weight:600; color:#333;">Timestamp</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="votesTableBody">
+                                    <tr><td colspan="3" style="padding:20px; text-align:center; color:#999;">Loading votes...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /paper-sheet -->
+        </div><!-- /folder-shell -->
+    </main>
+
+    <!-- Team member modal -->
+    <div id="teamModal" class="team-modal-overlay" style="display:none;" onclick="closeTeamModal(event)">
+        <div class="team-modal">
+            <div class="team-modal-header">
+                <h3>Add Team Member</h3>
+                <button class="cancel-btn" onclick="closeTeamModal()">✕</button>
+            </div>
+            <div class="team-modal-body">
+
+                <!-- Search -->
+                <label class="modal-label">Search Cloud Beacon users</label>
+                <input type="text" id="teamSearchInput" placeholder="Type a username or email..." oninput="searchUsers()" class="modal-input" autocomplete="off">
+                <div id="userSearchResults" class="user-search-results"></div>
+
+                <!-- Selected registered user -->
+                <div id="selectedUserBlock" style="display:none;">
+                    <div id="selectedUserDisplay" class="selected-user"></div>
+                    <label class="modal-label" style="margin-top:14px;">Role</label>
+                    <select id="teamRoleSelect" class="modal-select">
+                        <option value="Sponsor">Sponsor — project owner</option>
+                        <option value="Manager">Manager — lead team</option>
+                        <option value="Member" selected>Member — participate</option>
+                    </select>
+                    <button class="save-btn modal-confirm-btn" onclick="confirmAddTeamMember()">Add to Project</button>
+                </div>
+
+                <!-- External member form -->
+                <div id="externalBlock" style="display:none;" class="external-form">
+                    <div class="external-form-label">External member (not on Cloud Beacon)</div>
+                    <label class="modal-label">Name *</label>
+                    <input type="text" id="externalName" placeholder="Full name" class="modal-input">
+                    <label class="modal-label">Email</label>
+                    <input type="email" id="externalEmail" placeholder="email@example.com" class="modal-input">
+                    <label class="modal-label">Role</label>
+                    <select id="teamRoleSelectExternal" class="modal-select">
+                        <option value="Sponsor">Sponsor — project owner</option>
+                        <option value="Manager">Manager — lead team</option>
+                        <option value="Member" selected>Member — participate</option>
+                    </select>
+                    <button class="save-btn modal-confirm-btn" onclick="confirmAddTeamMember()">Add to Project</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Team Member Modal -->
+    <div id="editTeamMemberModal" class="team-modal-overlay" style="display:none;" onclick="closeEditTeamMemberModal(event)">
+        <div class="team-modal">
+            <div class="team-modal-header">
+                <h3>Edit Team Member</h3>
+                <button class="cancel-btn" onclick="closeEditTeamMemberModal()">✕</button>
+            </div>
+            <div class="team-modal-body">
+                <div style="margin-bottom:16px; padding:12px; background:#f5f4f0; border-radius:6px;">
+                    <div style="font-weight:600; margin-bottom:4px;">Member</div>
+                    <div id="editMemberName" style="font-size:14px;">—</div>
+                </div>
+
+                <label class="modal-label">Role</label>
+                <select id="editMemberRoleSelect" class="modal-select">
+                    <option value="Sponsor">Sponsor — project owner</option>
+                    <option value="Manager">Manager — lead team</option>
+                    <option value="Member">Member — participate</option>
+                </select>
+
+                <div class="modal-actions" style="margin-top:20px; display:flex; gap:8px;">
+                    <button class="save-btn" style="flex:1;" onclick="updateTeamMemberRole()">Save Role</button>
+                    <button class="cancel-btn" style="flex:1;" onclick="closeEditTeamMemberModal()">Cancel</button>
+                </div>
+
+                <div style="border-top:1px solid #ddd; margin-top:20px; padding-top:16px;">
+                    <div style="font-size:12px; color:#666; margin-bottom:12px;">⚠️ Danger Zone</div>
+                    <button class="remove-btn" style="width:100%; padding:10px;" onclick="confirmRemoveTeamMember()">Remove Team Member</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task detail modal -->
+    <div id="taskModal" class="task-modal-overlay" style="display:none;" onclick="closeTaskModal(event)">
+        <div class="task-modal">
+            <div class="task-modal-header">
+                <div>
+                    <h3 id="taskModalTitle">New Task</h3>
+                    <span id="taskModalDisplayId" class="modal-display-id"></span>
+                </div>
+                <button class="cancel-btn" onclick="closeTaskModal()">✕</button>
+            </div>
+            <div class="task-modal-body">
+
+                <!-- Task Name -->
+                <label class="modal-label">Task Name *</label>
+                <input type="text" id="taskNameInput" placeholder="e.g., Design mockups, Implement API..." class="modal-input">
+
+                <!-- Activity -->
+                <label class="modal-label">Activity *</label>
+                <select id="taskActivitySelect" class="modal-select">
+                    <option value="">Select an activity...</option>
+                </select>
+
+                <!-- Start Date -->
+                <label class="modal-label">Start Date</label>
+                <input type="date" id="taskStartInput" class="modal-input">
+
+                <!-- Finish Date -->
+                <label class="modal-label">Finish Date</label>
+                <input type="date" id="taskFinishInput" class="modal-input">
+
+                <!-- Expected Duration (days) -->
+                <label class="modal-label">Expected Duration (days)</label>
+                <input type="number" id="taskDurationInput" placeholder="1" min="1" class="modal-input">
+
+                <!-- Task Status -->
+                <label class="modal-label">Status</label>
+                <select id="taskStatusSelect" class="modal-select">
+                    <option value="Not Started">Not Started</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="On Hold">On Hold</option>
+                    <option value="Complete">Complete</option>
+                </select>
+
+                <!-- Description -->
+                <label class="modal-label">Description</label>
+                <textarea id="taskDescInput" placeholder="Task description and notes..." class="modal-textarea"></textarea>
+
+                <!-- Skills Required -->
+                <label class="modal-label">Skills Required</label>
+                <p style="font-size:11px;color:#888;margin-bottom:8px;">Select multiple skills from categories:</p>
+                <select id="taskSkillsInput" class="modal-select" multiple style="min-height:120px;">
+                    <!-- Options populated by JavaScript -->
+                </select>
+                <div id="selectedSkillsTags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
+
+                <div class="divider" style="margin:16px 0;"></div>
+
+                <!-- Dependencies Section -->
+                <h4 class="modal-section-title">Dependencies</h4>
+                
+                <!-- Predecessors -->
+                <label class="modal-label">Predecessor Task IDs (comma-separated)</label>
+                <input type="text" id="taskPredecessorInput" placeholder="e.g., 1702504800000, 1702504900000" class="modal-input" style="font-size:12px;">
+                <p style="font-size:11px;color:#888;margin-top:4px;">This task cannot start before the latest finish date of its predecessors.</p>
+
+                <!-- Successors -->
+                <label class="modal-label" style="margin-top:12px;">Successor Task IDs (comma-separated)</label>
+                <input type="text" id="taskSuccessorInput" placeholder="e.g., 1702505000000, 1702505100000" class="modal-input" style="font-size:12px;">
+                <p style="font-size:11px;color:#888;margin-top:4px;">Successor tasks cannot start before this task finishes.</p>
+
+                <div class="divider" style="margin:16px 0;"></div>
+
+                <!-- Costs / Procurement -->
+                <h4 class="modal-section-title">Costs</h4>
+                <p style="font-size:13px;color:#888;margin-bottom:8px;">Indicate whether this task has an associated cost and procurement details.</p>
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size: 12px;">
+                    <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="taskNoCostCheckbox" checked onchange="toggleTaskCostFields()"> No cost</label>
+                    <small style="color:#888;">(default: no cost)</small>
+                </div>
+
+                <div id="costKnownBlock" style="display:none;margin-top:8px;">
+                    <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;font-size: 12px;">
+                        <label><input type="radio" name="taskCostKnown" value="yes" onchange="toggleTaskCostFields()"> Known cost</label>
+                        <label><input type="radio" name="taskCostKnown" value="no" onchange="toggleTaskCostFields()"> Tender / unknown</label>
+                    </div>
+                    <div id="costDetails" style="display:none;">
+                        <label class="modal-label">Estimated Cost (£)</label>
+                        <input type="number" id="taskCostAmount" class="modal-input" placeholder="1000">
+                        <label class="modal-label">Assign to (project member)</label>
+                        <select id="taskAssignedInput" class="modal-select">
+                            <option value="">— Not assigned —</option>
+                        </select>
+                        <label class="modal-label">Supplier (optional)</label>
+                        <input type="text" id="taskSupplierInput" class="modal-input" placeholder="Supplier name or link">
+                    </div>
+                    <div id="procurementBlock" style="display:none;margin-top:8px;">
+                        <label class="modal-label">Procurement / Tender notes</label>
+                        <textarea id="taskProcurementNotes" class="modal-textarea" placeholder="Describe what's required for tender..."></textarea>
+                    </div>
+                </div>
+
+                <div class="divider" style="margin:16px 0;"></div>
+
+                <!-- Contract Awards Section (placeholder) -->
+                <h4 class="modal-section-title">Contract Awards</h4>
+                <p style="font-size:13px;color:#888;margin-bottom:12px;">Track which contractors or teams have been awarded contracts for this task.</p>
+                <div style="background:#f5f4f0;padding:12px;border-radius:6px;border:1px dashed #ddd;text-align:center;color:#aaa;font-size:12px;">
+                    Contract awards coming soon
+                </div>
+
+                <!-- Buttons -->
+                <div class="modal-actions">
+                    <button class="save-btn" style="flex:1;" onclick="confirmAddTask()">Save Task</button>
+                    <button class="cancel-btn" style="flex:1;" onclick="closeTaskModal()">Cancel</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Bid Modal -->
+    <div id="bidModal" class="task-modal-overlay" style="display:none;" onclick="closeBidModal(event)">
+        <div class="task-modal">
+            <div class="task-modal-header">
+                <div>
+                    <h3>Place a Bid</h3>
+                    <span id="bidTaskName" class="modal-display-id"></span>
+                </div>
+                <button class="cancel-btn" onclick="closeBidModal()">✕</button>
+            </div>
+            <div class="task-modal-body">
+                <label class="modal-label">Task</label>
+                <div style="background:#f5f4f0;padding:12px;border-radius:6px;margin-bottom:12px;">
+                    <strong id="bidTaskTitle">—</strong>
+                    <div style="font-size:12px;color:#888;margin-top:4px;" id="bidTaskProcurement">—</div>
+                </div>
+
+                <label class="modal-label">Your Bid Amount (£) *</label>
+                <input type="number" id="bidAmount" placeholder="1000" min="0" step="0.01" class="modal-input">
+
+                <label class="modal-label">Your Name / Organisation *</label>
+                <input type="text" id="bidderName" placeholder="Company name or individual" class="modal-input">
+
+                <label class="modal-label">Company (optional)</label>
+                <input type="text" id="bidderCompany" placeholder="Company name or affiliation" class="modal-input">
+
+                <label class="modal-label">Contact Email *</label>
+                <input type="email" id="bidderEmail" placeholder="contact@company.com" class="modal-input">
+
+                <label class="modal-label">Website / Link (optional)</label>
+                <input type="url" id="bidderLink" placeholder="https://example.com" class="modal-input">
+
+                <label class="modal-label">Notes (optional)</label>
+                <textarea id="bidNotes" placeholder="Any additional information about your bid..." class="modal-textarea"></textarea>
+
+                <div class="divider" style="margin:16px 0;"></div>
+
+                <!-- Buttons -->
+                <div class="modal-actions">
+                    <button class="save-btn" style="flex:1;" onclick="confirmPlaceBid()">Submit Bid</button>
+                    <button class="cancel-btn" style="flex:1;" onclick="closeBidModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="firebase.js"></script>
+    <script type="module" src="projects.js"></script>
+    <script type="module" src="projectpage.js"></script>
+    <script src="colors.js"></script>
+    <script src="colorSettings.js"></script>
+    <script src="colorSettingsUI.js"></script>
+    <script src="sharing.js"></script>
+</body>
+</html>

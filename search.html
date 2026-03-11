@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search — Cloud Beacon</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .search-page {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .search-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .search-header h1 {
+            font-size: 32px;
+            margin: 0 0 10px 0;
+            color: #fff;
+        }
+
+        .search-header p {
+            color: #888;
+            margin: 0;
+        }
+
+        .search-container {
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        #searchQueryInput {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            background: #2a2218;
+            color: #fff;
+            font-size: 16px;
+            font-family: 'DM Sans', sans-serif;
+            transition: border-color 0.3s;
+        }
+
+        #searchQueryInput:focus {
+            outline: none;
+            border-color: #0ca678;
+        }
+
+        .search-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #444;
+            overflow-x: auto;
+            padding-bottom: 12px;
+        }
+
+        .search-tab {
+            padding: 8px 16px;
+            border: none;
+            background: none;
+            color: #888;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .search-tab:hover {
+            color: #ccc;
+        }
+
+        .search-tab.active {
+            color: #fff;
+            border-bottom-color: #0ca678;
+        }
+
+        .search-results {
+            display: none;
+        }
+
+        .search-results.active {
+            display: block;
+        }
+
+        .result-item {
+            padding: 16px;
+            margin-bottom: 12px;
+            background: #2a2218;
+            border-radius: 8px;
+            border-left: 4px solid #0ca678;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .result-item:hover {
+            background: #3a3228;
+            transform: translateX(4px);
+        }
+
+        .result-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+            margin: 0 0 6px 0;
+        }
+
+        .result-subtitle {
+            font-size: 13px;
+            color: #999;
+            margin: 0;
+        }
+
+        .result-content {
+            font-size: 13px;
+            color: #bbb;
+            margin: 8px 0 0 0;
+            line-height: 1.4;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .no-results-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 12px;
+            background: #444;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .back-button:hover {
+            background: #555;
+        }
+
+        .user-result-header {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="search-page">
+        <button class="back-button" onclick="window.history.back()">← Back</button>
+
+        <div class="search-header">
+            <h1>🔍 Find</h1>
+            <p>Search for users, projects, and posts</p>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="searchQueryInput" placeholder="Search users, projects, posts..." onkeyup="performSearch()" onkeydown="if(event.key==='Enter') performSearch();">
+        </div>
+
+        <div class="search-tabs">
+            <button class="search-tab active" data-tab="all" onclick="switchSearchTab('all')">All</button>
+            <button class="search-tab" data-tab="users" onclick="switchSearchTab('users')">Users</button>
+            <button class="search-tab" data-tab="projects" onclick="switchSearchTab('projects')">Projects</button>
+            <button class="search-tab" data-tab="posts" onclick="switchSearchTab('posts')">Posts</button>
+            <button class="search-tab" data-tab="feeds" onclick="switchSearchTab('feeds')">Feeds</button>
+        </div>
+
+        <div id="searchResultsAll" class="search-results active" data-tab="all"></div>
+        <div id="searchResultsUsers" class="search-results" data-tab="users"></div>
+        <div id="searchResultsProjects" class="search-results" data-tab="projects"></div>
+        <div id="searchResultsPosts" class="search-results" data-tab="posts"></div>
+        <div id="searchResultsFeeds" class="search-results" data-tab="feeds"></div>
+    </div>
+
+    <script src="notifications.js"></script>
+    <script src="loginHeckles.js"></script>
+
+    <script type="module" src="firebase.js"></script>
+    <script type="module" src="auth.js"></script>
+    <script type="module" src="search-page.js"></script>
+</body>
+</html>
