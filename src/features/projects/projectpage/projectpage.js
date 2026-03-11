@@ -129,6 +129,7 @@ async function loadProject() {
         loadUpdates();
         loadTeam();
         initializePlanTab();
+        updateLegislativeTabVisibility();
     } catch (err) {
         handleError(err, 'loading project', { 
             notify: true,
@@ -143,6 +144,20 @@ function getCategory() {
     return (currentItem?.category || 'all').toLowerCase();
 }
 
+// Show/hide legislative-only tabs (Votes, Petition) based on project type
+function updateLegislativeTabVisibility() {
+    const isLegislative = itemType === 'legislation';
+    const votesTab = document.getElementById('votesTab');
+    const petitionTab = document.getElementById('petitionTab');
+    const votesPanel = document.getElementById('panel-votes');
+    const petitionPanel = document.getElementById('panel-petition');
+    
+    if (votesTab) votesTab.style.display = isLegislative ? 'block' : 'none';
+    if (petitionTab) petitionTab.style.display = isLegislative ? 'block' : 'none';
+    if (votesPanel) votesPanel.style.display = isLegislative ? 'block' : 'none';
+    if (petitionPanel) petitionPanel.style.display = isLegislative ? 'block' : 'none';
+}
+
 // ---- Overview ----
 function renderOverview() {
     const item = currentItem;
@@ -152,11 +167,16 @@ function renderOverview() {
     document.title = item.title + ' — Cloud Beacon';
 
     const badge = document.getElementById('projectCategoryBadge');
-    badge.textContent = catLabels[cat] || 'Project';
-    badge.className = `category-badge ${cat}`;
+    if (badge) {
+        badge.textContent = catLabels[cat] || 'Project';
+        badge.className = `category-badge ${cat}`;
+    }
 
-    document.getElementById('projectTitle').textContent = item.title;
-    document.getElementById('titleInput').value = item.title;
+    const titleEl = document.getElementById('projectTitle');
+    if (titleEl) titleEl.textContent = item.title;
+    
+    const titleInput = document.getElementById('titleInput');
+    if (titleInput) titleInput.value = item.title;
 
     // Header picture
     const headerPicture = item.headerPictureUrl || '';
@@ -175,28 +195,54 @@ function renderOverview() {
 
     const status = item.status || 'Active';
     const statusEl = document.getElementById('statusDisplay');
-    statusEl.textContent = status;
-    statusEl.className = `status-badge status-${status.toLowerCase().replace(/\s+/g, '-')}`;
-    document.getElementById('statusEdit').value = status;
-    document.getElementById('metaStatus').textContent = status;
+    if (statusEl) {
+        statusEl.textContent = status;
+        statusEl.className = `status-badge status-${status.toLowerCase().replace(/\s+/g, '-')}`;
+    }
+    
+    const statusEdit = document.getElementById('statusEdit');
+    if (statusEdit) statusEdit.value = status;
+    
+    const metaStatus = document.getElementById('metaStatus');
+    if (metaStatus) metaStatus.textContent = status;
 
     const desc = item.description || '';
-    document.getElementById('projectDescription').textContent = desc || 'No description yet.';
-    document.getElementById('projectDescription').className = `description-text${desc ? '' : ' muted'}`;
-    document.getElementById('descriptionInput').value = desc;
+    const projDesc = document.getElementById('projectDescription');
+    if (projDesc) {
+        projDesc.textContent = desc || 'No description yet.';
+        projDesc.className = `description-text${desc ? '' : ' muted'}`;
+    }
+    
+    const descInput = document.getElementById('descriptionInput');
+    if (descInput) descInput.value = desc;
 
     const solution = item.solution || '';
-    document.getElementById('projectSolution').textContent = solution || 'No solution added yet.';
-    document.getElementById('projectSolution').className = `description-text${solution ? '' : ' muted'}`;
-    document.getElementById('solutionInput').value = solution;
+    const projSol = document.getElementById('projectSolution');
+    if (projSol) {
+        projSol.textContent = solution || 'No solution added yet.';
+        projSol.className = `description-text${solution ? '' : ' muted'}`;
+    }
+    
+    const solInput = document.getElementById('solutionInput');
+    if (solInput) solInput.value = solution;
 
-    document.getElementById('thresholdInput').value = item.voteThreshold || 1;
-    document.getElementById('thresholdDisplay').textContent = item.voteThreshold || 1;
+    const thresholdInput = document.getElementById('thresholdInput');
+    if (thresholdInput) thresholdInput.value = item.voteThreshold || 1;
+    
+    const thresholdDisplay = document.getElementById('thresholdDisplay');
+    if (thresholdDisplay) thresholdDisplay.textContent = item.voteThreshold || 1;
 
     const date = item.createdAt ? new Date(item.createdAt.seconds * 1000).toLocaleDateString('en-GB') : '—';
-    document.getElementById('metaAuthor').textContent   = item.ownerName || item.authorName || 'UK Parliament';
-    document.getElementById('metaCreated').textContent  = date;
-    document.getElementById('metaCategory').textContent = catLabels[cat] || cat;
+    
+    const metaAuthor = document.getElementById('metaAuthor');
+    if (metaAuthor) metaAuthor.textContent = item.ownerName || item.authorName || 'UK Parliament';
+    
+    const metaCreated = document.getElementById('metaCreated');
+    if (metaCreated) metaCreated.textContent = date;
+    
+    const metaCategory = document.getElementById('metaCategory');
+    if (metaCategory) metaCategory.textContent = catLabels[cat] || cat;
+    
     // Project number — assign one if not yet set
     const projNumEl = document.getElementById('metaProjectNumber');
     if (projNumEl) {
@@ -3546,4 +3592,9 @@ window.renderBidsForTask    = renderBidsForTask;
 window.handleBidVote        = handleBidVote;
 window.awardBid             = awardBid;
 
-loadProject();
+// Wait for DOM to be ready before initializing
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadProject);
+} else {
+    loadProject();
+}

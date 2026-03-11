@@ -54,7 +54,7 @@ async function navigateToProjectForBill(projectId, billName) {
     try {
         console.log(`[Bill Navigation] Navigating to project: ${projectId} (${billName})`);
         if (projectId) {
-            window.location.href = `project.html?id=${projectId}&type=project`;
+            window.location.href = `src/features/projects/projectpage/project.html?id=${projectId}&type=project`;
         } else {
             alert(`Project for bill "${billName}" not found.`);
         }

@@ -18,22 +18,22 @@
     <meta name="twitter:image" content="">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../../../style.css">
     <link rel="stylesheet" href="project.css">
 </head>
 <body>
     <header class="site-header">
-        <a href="index.html" class="site-logo">Cloud Beacon</a>
+        <a href="../../../../index.html" class="site-logo">Cloud Beacon</a>
         <nav>
-            <a href="index.html">Home</a>
-            <a href="translator/translator.html">Translator</a>
+            <a href="../../../../index.html">Home</a>
+            <a href="../../../../Translator/translator.html">Translator</a>
         </nav>
     </header>
 
     <main class="folder-workspace">
         <div class="folder-shell">
 
-            <!-- Primary tab row: 8 tabs -->
+            <!-- Primary tab row: 10 tabs (Votes and Petition added for legislation) -->
             <div class="tab-row" id="primaryTabs">
                 <button class="folder-tab active" data-tab="overview"  style="--tab-color:#f59f00;" onclick="switchTab('overview')">Overview</button>
                 <button class="folder-tab"        data-tab="team"      style="--tab-color:#0ca678;" onclick="switchTab('team')">Team</button>
@@ -42,7 +42,9 @@
                 <button class="folder-tab"        data-tab="files"     style="--tab-color:#a855f7;" onclick="switchTab('files')">Files</button>
                 <button class="folder-tab"        data-tab="updates"   style="--tab-color:#f97316;" onclick="switchTab('updates')">Updates</button>
                 <button class="folder-tab"        data-tab="chat"      style="--tab-color:#ef4444;" onclick="switchTab('chat')">Chat</button>
-                <button class="folder-tab"        data-tab="change"    style="--tab-color:#8b5cf6;" onclick="switchTab('change')">Change</button>
+                <button class="folder-tab" id="votesTab"       data-tab="votes"     style="--tab-color:#06b6d4;" onclick="switchTab('votes')">Votes</button>
+                <button class="folder-tab" id="petitionTab"   data-tab="petition"  style="--tab-color:#8b5cf6;" onclick="switchTab('petition')">Petition</button>
+                <button class="folder-tab"        data-tab="log"       style="--tab-color:#8b5cf6;" onclick="switchTab('log')">Log</button>
             </div>
 
             <!-- A4 paper -->
@@ -80,6 +82,11 @@
                         </div>
                     </div>
 
+                    <!-- Archived Banner -->
+                    <div id="archivedBanner" style="display:none;background:#d9d9d9;color:#444;padding:12px 16px;border-radius:4px;margin-bottom:16px;border-left:4px solid #999;font-weight:600;text-align:center;">
+                        📦 This project is archived and cannot be edited.
+                    </div>
+
                     <div class="divider"></div>
 
                     <!-- Header Picture -->
@@ -88,7 +95,7 @@
                             <h3 class="section-label">Header Picture</h3>
                             <button class="edit-btn small" onclick="startEdit('headerPicture')">✎ Edit</button>
                         </div>
-                        <div id="projectHeaderPicture" style="width:100%;height:200px;background-color:#f0f0f0;border-radius:6px;margin-bottom:12px;background-size:cover;background-position:center;display:none;"></div>
+                        <div id="projectHeaderPicture" style="width:100%;height:420px;background-color:#f0f0f0;border-radius:6px;margin-bottom:12px;background-size:cover;background-position:center;display:none;"></div>
                         <p id="headerPictureDisplay" class="description-text muted" style="font-size:12px;">No header picture set. Click edit to upload an image.</p>
                         <div id="headerPictureEdit" style="display:none;margin-top:12px;">
                             <label style="font-size:12px; color:#444; display:flex; align-items:center; gap:6px; cursor:pointer; margin-bottom:12px;">
@@ -158,18 +165,20 @@
 
                     <div class="divider"></div>
 
-                    <!-- Join / Follow buttons -->
+                    <!-- Join / Follow / Repost buttons -->
                     <div style="display: flex; gap: 12px; margin-bottom: 20px;">
                         <button id="joinProjectBtn" class="save-btn" onclick="openJoinProjectForm()" style="flex:1;">Request to Join</button>
                         <button id="followProjectBtn" class="cancel-btn" onclick="handleFollowProject()" style="flex:1;">Follow Project</button>
+                        <button id="repostProjectBtn" class="post-action-btn" onclick="repostProject()" style="flex:1; background:#3b82f6; color:white;">🔁 Repost</button>
+                        <button id="archiveProjectBtn" class="cancel-btn" onclick="archiveProject()" style="flex:1; display:none;">📦 Archive</button>
                     </div>
 
                     <div class="divider"></div>
 
-                    <!-- Problem -->
-                    <div class="editable-section">
+                    <!-- Description (for all projects, but content changes by category) -->
+                    <div class="editable-section" id="descriptionSection">
                         <div class="section-header-row">
-                            <h3 class="section-label">Problem</h3>
+                            <h3 class="section-label">Description</h3>
                             <button class="edit-btn small" onclick="startEdit('description')">✎ Edit</button>
                         </div>
                         <p id="projectDescription" class="description-text muted">No description yet.</p>
@@ -182,8 +191,24 @@
                         </div>
                     </div>
 
-                    <!-- Proposed Solution -->
-                    <div class="editable-section">
+                    <!-- Problem section (for non-Law projects) -->
+                    <div class="editable-section" id="problemSection" style="display:none;">
+                        <div class="section-header-row">
+                            <h3 class="section-label">Problem</h3>
+                            <button class="edit-btn small" onclick="startEdit('description')">✎ Edit</button>
+                        </div>
+                        <p id="projectProblem" class="description-text muted">No description yet.</p>
+                        <div id="problemEdit" style="display:none;">
+                            <textarea id="problemInput" rows="3"></textarea>
+                            <div class="edit-actions">
+                                <button class="save-btn" onclick="saveField('description')">Save</button>
+                                <button class="cancel-btn" onclick="cancelEdit('description')">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Proposed Solution section (for non-Law projects) -->
+                    <div class="editable-section" id="solutionSection" style="display:none;">
                         <div class="section-header-row">
                             <h3 class="section-label">Proposed Solution</h3>
                             <button class="edit-btn small" onclick="startEdit('solution')">✎ Edit</button>
@@ -200,50 +225,33 @@
 
                     <div class="divider"></div>
 
-                    <!-- Meta cards -->
-                    <div class="overview-meta-grid">
-                        <div class="meta-card">
-                            <div class="meta-label">Author</div>
-                            <div class="meta-value" id="metaAuthor">—</div>
-                        </div>
-                        <div class="meta-card">
-                            <div class="meta-label">Created</div>
-                            <div class="meta-value" id="metaCreated">—</div>
-                        </div>
-                        <div class="meta-card">
-                            <div class="meta-label">Status</div>
-                            <div class="meta-value" id="metaStatus">—</div>
-                        </div>
-                        <div class="meta-card">
-                            <div class="meta-label">Category</div>
-                            <div class="meta-value" id="metaCategory">—</div>
-                        </div>
-                        <div class="meta-card">
-                            <div class="meta-label">Project No.</div>
-                            <div class="meta-value" id="metaProjectNumber">—</div>
-                        </div>
-                        <div class="meta-card">
-                            <div class="meta-label">Planned Finish</div>
-                            <div class="meta-value" id="metaPlannedFinish">—</div>
-                        </div>
-                        <div class="meta-card">
-                            <div class="meta-label" style="display:flex;justify-content:space-between;align-items:center;">
-                                Committed Date
-                                <button class="edit-btn small" onclick="startEdit('committedDate')" style="margin-left:8px;">✎</button>
+                    <!-- Bill Info section (for legislation only) -->
+                    <div id="billInfoSection" style="display:none;">
+                        <div class="overview-meta-grid">
+                            <div class="meta-card">
+                                <div class="meta-label">Bill Stage</div>
+                                <div class="meta-value" id="billStage">—</div>
                             </div>
-                            <div class="meta-value" id="metaCommittedDate">—</div>
-                            <div id="committedDateEdit" style="display:none;margin-top:8px;">
-                                <input type="date" id="committedDateInput" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;">
-                                <div style="display:flex;gap:6px;margin-top:8px;">
-                                    <button class="save-btn" style="flex:1;font-size:12px;" onclick="saveField('committedDate')">Save</button>
-                                    <button class="cancel-btn" style="flex:1;font-size:12px;" onclick="cancelEdit('committedDate')">Cancel</button>
-                                </div>
+                            <div class="meta-card">
+                                <div class="meta-label">Categories</div>
+                                <div class="meta-value" id="billCategories">—</div>
+                            </div>
+                            <div class="meta-card">
+                                <div class="meta-label">Last Updated</div>
+                                <div class="meta-value" id="billLastUpdated">—</div>
+                            </div>
+                            <div class="meta-card">
+                                <div class="meta-label">Bill ID</div>
+                                <div class="meta-value" id="billId">—</div>
                             </div>
                         </div>
-                        <div class="meta-card">
-                            <div class="meta-label">Hazard</div>
-                            <div class="meta-value" id="metaHazard">—</div>
-                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- Meta cards - will update dynamically based on category -->
+                    <div class="overview-meta-grid" id="metaGrid">
+                        <!-- Populated by JS -->
                     </div>
 
                 </div>
@@ -394,6 +402,7 @@
                                 <input type="text" id="newFolderName" placeholder="Folder name..." style="padding:6px; font-size:12px; border:1px solid #ddd; border-radius:4px; width:120px;">
                                 <button onclick="createNewFolder()" style="padding:6px 10px; font-size:12px; background:#22c55e; color:white; border:none; border-radius:4px; cursor:pointer; margin-left:4px;">New Folder</button>
                             </div>
+                            <p style="margin:8px 0 0; font-size:11px; color:#999;">📌 Max file size: 750 KB per file (stored as metadata)</p>
                         </div>
                     </div>
 
@@ -496,12 +505,63 @@
                     </div>
                 </div>
 
-                <!-- ===================== CHANGE LOG ===================== -->
-                <div class="tab-panel" id="panel-change">
-                    <h2 class="panel-title">Change Log</h2>
+                <!-- ===================== VOTES (for Legislation) ===================== -->
+                <div class="tab-panel" id="panel-votes" style="display:none;">
+                    <h2 class="panel-title">Division Votes</h2>
                     <div class="divider"></div>
-                    <div style="font-size:12px; color:#666; margin-bottom:16px;">All edits to project details are recorded here for transparency and audit purposes.</div>
-                    <div id="changeLog" class="change-log" style="font-size:13px;"></div>
+                    
+                    <!-- Division Summary -->
+                    <div id="divisionSummary" class="overview-meta-grid" style="margin-bottom:20px;">
+                        <!-- Populated by JS -->
+                    </div>
+                    
+                    <h3 class="section-label">Vote Breakdown</h3>
+                    <div id="divisionList" class="change-log"></div>
+                </div>
+
+                <!-- ===================== PETITION (for Legislation) ===================== -->
+                <div class="tab-panel" id="panel-petition" style="display:none;">
+                    <h2 class="panel-title">Related Petitions</h2>
+                    <div class="divider"></div>
+                    
+                    <div style="margin-bottom:20px;">
+                        <button class="save-btn" onclick="searchRelatedPetitions()">🔍 Search for Related Petitions</button>
+                    </div>
+                    
+                    <div id="petitionList" class="change-log">
+                        <p class="placeholder-text">No petitions linked yet. Click search to find related petitions.</p>
+                    </div>
+                </div>
+
+                <!-- ===================== LOG (Change + Votes) ===================== -->
+                <div class="tab-panel" id="panel-log">
+                    <h2 class="panel-title">Log</h2>
+                    <div class="divider"></div>
+                    
+                    <!-- Change Subtab -->
+                    <div id="subpanel-log-change" class="subpanel active">
+                        <div style="font-size:12px; color:#666; margin-bottom:16px;">All edits to project details are recorded here for transparency and audit purposes.</div>
+                        <div id="changeLog" class="change-log" style="font-size:13px;"></div>
+                    </div>
+                    
+                    <!-- Votes Subtab -->
+                    <div id="subpanel-log-votes" class="subpanel">
+                        <div style="font-size:12px; color:#666; margin-bottom:16px;">Vote history. Show mutual followers' names where available.</div>
+                        <div style="overflow-x:auto;">
+                            <table id="votesTable" style="width:100%; border-collapse:collapse; font-size:13px;">
+                                <thead>
+                                    <tr style="border-bottom:2px solid #ddd; background:#f5f5f5;">
+                                        <th style="padding:10px; text-align:left; font-weight:600; color:#333;">User ID / Name</th>
+                                        <th style="padding:10px; text-align:center; font-weight:600; color:#333;">Vote</th>
+                                        <th style="padding:10px; text-align:left; font-weight:600; color:#333;">Timestamp</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="votesTableBody">
+                                    <tr><td colspan="3" style="padding:20px; text-align:center; color:#999;">Loading votes...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
             </div><!-- /paper-sheet -->
@@ -554,6 +614,39 @@
         </div>
     </div>
 
+    <!-- Edit Team Member Modal -->
+    <div id="editTeamMemberModal" class="team-modal-overlay" style="display:none;" onclick="closeEditTeamMemberModal(event)">
+        <div class="team-modal">
+            <div class="team-modal-header">
+                <h3>Edit Team Member</h3>
+                <button class="cancel-btn" onclick="closeEditTeamMemberModal()">✕</button>
+            </div>
+            <div class="team-modal-body">
+                <div style="margin-bottom:16px; padding:12px; background:#f5f4f0; border-radius:6px;">
+                    <div style="font-weight:600; margin-bottom:4px;">Member</div>
+                    <div id="editMemberName" style="font-size:14px;">—</div>
+                </div>
+
+                <label class="modal-label">Role</label>
+                <select id="editMemberRoleSelect" class="modal-select">
+                    <option value="Sponsor">Sponsor — project owner</option>
+                    <option value="Manager">Manager — lead team</option>
+                    <option value="Member">Member — participate</option>
+                </select>
+
+                <div class="modal-actions" style="margin-top:20px; display:flex; gap:8px;">
+                    <button class="save-btn" style="flex:1;" onclick="updateTeamMemberRole()">Save Role</button>
+                    <button class="cancel-btn" style="flex:1;" onclick="closeEditTeamMemberModal()">Cancel</button>
+                </div>
+
+                <div style="border-top:1px solid #ddd; margin-top:20px; padding-top:16px;">
+                    <div style="font-size:12px; color:#666; margin-bottom:12px;">⚠️ Danger Zone</div>
+                    <button class="remove-btn" style="width:100%; padding:10px;" onclick="confirmRemoveTeamMember()">Remove Team Member</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Task detail modal -->
     <div id="taskModal" class="task-modal-overlay" style="display:none;" onclick="closeTaskModal(event)">
         <div class="task-modal">
@@ -600,6 +693,14 @@
                 <!-- Description -->
                 <label class="modal-label">Description</label>
                 <textarea id="taskDescInput" placeholder="Task description and notes..." class="modal-textarea"></textarea>
+
+                <!-- Skills Required -->
+                <label class="modal-label">Skills Required</label>
+                <p style="font-size:11px;color:#888;margin-bottom:8px;">Select multiple skills from categories:</p>
+                <select id="taskSkillsInput" class="modal-select" multiple style="min-height:120px;">
+                    <!-- Options populated by JavaScript -->
+                </select>
+                <div id="selectedSkillsTags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
 
                 <div class="divider" style="margin:16px 0;"></div>
 
@@ -712,8 +813,12 @@
         </div>
     </div>
 
-    <script type="module" src="../../../firebase.js"></script>
+    <script type="module" src="../../../../firebase.js"></script>
     <script type="module" src="../projects.js"></script>
-    <script type="module" src="projectpage.js"></script>
+    <script type="module" src="./projectpage.js"></script>
+    <script src="../../../../src/utils/colors.js"></script>
+    <script src="../../settings/colorSettings.js"></script>
+    <script src="../../settings/colorSettingsUI.js"></script>
+    <script src="../../../../src/utils/sharing.js"></script>
 </body>
 </html>

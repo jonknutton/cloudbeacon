@@ -405,7 +405,7 @@ const NotificationsUI = {
                 if (notif.type === 'user_follows_you' && notif.data?.userId) {
                     link = `profile.html?uid=${notif.data.userId}`;
                 } else if (notif.data?.projectId) {
-                    link = `project.html?id=${notif.data.projectId}`;
+                    link = `src/features/projects/projectpage/project.html?id=${notif.data.projectId}`;
                 } else if (notif.data?.postId) {
                     link = `#post/${notif.data.postId}`;
                 } else if (notif.data?.userId) {

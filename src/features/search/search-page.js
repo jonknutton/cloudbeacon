@@ -3,7 +3,7 @@
  * Handles user, project, and post searches from Firestore
  */
 
-import { db, auth } from './firebase.js';
+import { db, auth } from '../../../firebase.js';
 import { collection, getDocs, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 let currentSearchTab = 'all';
@@ -256,7 +256,7 @@ function displayProjectResults(container, results) {
         const Badge = project.isProposal ? '📋 Proposal' : `${getCategoryEmoji(project.category)} ${capitalizeFirst(project.category)}`;
         const preview = project.overview.substring(0, 100) + (project.overview.length > 100 ? '...' : '');
         html += `
-            <div class="result-item" onclick="window.location.href='project.html?id=${project.id}'">
+            <div class="result-item" onclick="window.location.href='src/features/projects/projectpage/project.html?id=${project.id}'">
                 <div class="result-title">${escapeHtml(project.title)}</div>
                 <div class="result-subtitle">${Badge}</div>
                 ${preview ? `<div class="result-content">${escapeHtml(preview)}</div>` : ''}

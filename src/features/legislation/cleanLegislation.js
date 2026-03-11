@@ -1,7 +1,7 @@
 // Script to clear old legislation bills from Firestore and prepare for fresh sync
 // Run this once, then call syncLegislation() to repopulate with correct data
 
-import { db } from './firebase.js';
+import { db } from '../../../firebase.js';
 import { collection, getDocs, deleteDoc, doc, query, where } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
 export async function cleanOldLegislation() {

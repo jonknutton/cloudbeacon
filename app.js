@@ -1838,7 +1838,7 @@ async function preloadAuthorInfo(items) {
 
 async function loadPosts() {
     try {
-        const { getFeed } = await import('./projects.js');
+        const { getFeed } = await import('./src/features/projects/projects.js');
         let items = await getFeed();
         
         console.log('[App] Feed loaded, items count:', items.length);
@@ -1930,7 +1930,7 @@ async function loadPosts() {
                         </div>
                     </div>
                     <div class="project-tag-container" style="background:${tabColor};">
-                        <a href="project.html?id=${item.id}&type=legislation" style="color:#fff; text-decoration:none;">
+                        <a href="src/features/projects/projectpage/project.html?id=${item.id}&type=legislation" style="color:#fff; text-decoration:none;">
                             <div class="project-tag-badge" style="background:${tabColor};">🏛️ ${item.category || 'Bill'}</div>
                             <div class="project-tag-title" style="background:${adjustBrightness(tabColor, 20)};">${item.title}</div>
                         </a>
@@ -2040,7 +2040,7 @@ async function loadPosts() {
                         </div>
                     </div>
                     <div style="padding:8px; background:#e0e7ff; border-radius:4px; margin-bottom:8px; font-size:12px; color:#1e40af; font-weight:600;">
-                        📌 <a href="project.html?id=${item.projectId}" style="color:#1e40af; text-decoration:none;">${item.projectName}</a>
+                        📌 <a href="src/features/projects/projectpage/project.html?id=${item.projectId}" style="color:#1e40af; text-decoration:none;">${item.projectName}</a>
                     </div>
                     <h3 style="margin:0 0 8px; font-size:15px;">${item.title}</h3>
                     <p style="margin:0 0 8px; font-size:14px; line-height:1.5;">${item.content}</p>
@@ -2077,7 +2077,7 @@ async function loadPosts() {
                         </div>
                     </div>
                     <div style="padding:8px; background:#f3e8ff; border-radius:4px; margin:6px 0; font-size:12px; color:#6b21a8; font-weight:600;">
-                        💬 <a href="project.html?id=${item.projectId}" style="color:#6b21a8; text-decoration:none;">${item.projectName}</a>
+                        💬 <a href="src/features/projects/projectpage/project.html?id=${item.projectId}" style="color:#6b21a8; text-decoration:none;">${item.projectName}</a>
                     </div>
                     <p style="margin:0 0 8px; font-size:14px; line-height:1.5;">${item.content}</p>
                     <div class="post-actions">
@@ -2123,7 +2123,7 @@ async function loadPosts() {
                         🔁 <a href="profile.html?uid=${item.originalAuthorId}" style="color:#fff; text-decoration:none;">${originalAuthor}</a>'s project
                     </div>
                     <div class="project-tag-container" style="background:${tabColor};">
-                        <a href="project.html?id=${item.projectId}" style="color:#fff; text-decoration:none;">
+                        <a href="src/features/projects/projectpage/project.html?id=${item.projectId}" style="color:#fff; text-decoration:none;">
                             <div class="project-tag-badge" style="background:${tabColor};">${icon} ${item.category || 'Project'}</div>
                             <div class="project-tag-title" style="background:${adjustBrightness(tabColor, 20)};">${item.title}</div>
                         </a>
@@ -2584,7 +2584,7 @@ async function handleEditPost(postId) {
 
 async function handleRepost(postId) {
     try {
-        const { getFeed } = await import('./projects.js');
+        const { getFeed } = await import('./src/features/projects/projects.js');
         const items = await getFeed();
         const orig = items.find(i => i.id === postId);
         if (!orig) return alert('Original post not found');
@@ -2652,7 +2652,7 @@ async function handleProject() {
     document.getElementById('projectImageName').textContent = '';
     document.getElementById('projectProposal').checked = false;
     closeModal();
-    window.location.href = `project.html?id=${projectId}`;
+    window.location.href = `src/features/projects/projectpage/project.html?id=${projectId}`;
 }
 
 window.toggleComments = toggleComments;

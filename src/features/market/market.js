@@ -1,5 +1,5 @@
-import { db, auth } from './firebase.js';
-import { watchAuthState } from './auth.js';
+import { db, auth } from '../../../firebase.js';
+import { watchAuthState } from '../../../auth.js';
 import {
     collection, getDocs, query, where, orderBy, addDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -291,7 +291,7 @@ function getDaysAgo(timestamp) {
  * View task detail in project page
  */
 function viewTaskDetail(projectId, taskId) {
-    window.location.href = `project.html?id=${projectId}&tab=plan&task=${taskId}`;
+    window.location.href = `src/features/projects/projectpage/project.html?id=${projectId}&tab=plan&task=${taskId}`;
 }
 
 /**

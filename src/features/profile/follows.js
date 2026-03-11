@@ -3,7 +3,7 @@
  * Manages user follow/unfollow relationships and queries
  */
 
-import { db } from './firebase.js';
+import { db } from '../../../firebase.js';
 import { 
   collection, 
   doc, 

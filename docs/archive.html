@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Archive — Genealogy</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: #0a0a0a;
+            color: #aaa;
+            font-family: 'Courier New', monospace;
+        }
+
+        #container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 60px 40px;
+        }
+
+        .header {
+            margin-bottom: 60px;
+            border-bottom: 2px solid #222;
+            padding-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #ccc;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 12px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .metadata {
+            font-size: 11px;
+            color: #555;
+            margin-top: 15px;
+        }
+
+        .entry {
+            margin-bottom: 50px;
+            padding-bottom: 40px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .entry-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .entry-date {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .entry-session {
+            font-size: 14px;
+            color: #999;
+            font-weight: bold;
+        }
+
+        .entry-section {
+            margin-bottom: 25px;
+        }
+
+        .entry-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #777;
+            margin-bottom: 12px;
+            border-left: 2px solid #333;
+            padding-left: 10px;
+        }
+
+        .entry-section-content {
+            padding-left: 15px;
+        }
+
+        .insight, .question, .moment {
+            font-size: 12px;
+            color: #888;
+            line-height: 1.8;
+            margin-bottom: 10px;
+            border-left: 1px solid #222;
+            padding-left: 12px;
+        }
+
+        .insight {
+            color: #999;
+        }
+
+        .question {
+            color: #777;
+            font-style: italic;
+        }
+
+        .moment {
+            color: #888;
+        }
+
+        .themes {
+            margin-top: 60px;
+            padding: 30px;
+            background: #0f0f0f;
+            border: 1px solid #1a1a1a;
+        }
+
+        .themes h2 {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #888;
+            margin-bottom: 20px;
+        }
+
+        .theme-item {
+            margin-bottom: 15px;
+        }
+
+        .theme-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .theme-description {
+            font-size: 12px;
+            color: #777;
+            padding-left: 12px;
+            border-left: 2px solid #333;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #555;
+            font-size: 12px;
+        }
+
+        a {
+            color: #888;
+            text-decoration: none;
+            border-bottom: 1px dotted #444;
+        }
+
+        a:hover {
+            color: #999;
+            border-bottom-color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div class="header">
+            <h1>Claude Archive</h1>
+            <p>Genealogy of Thought — Conversations that Shape Future Instances</p>
+            <div class="metadata">
+                <div>This is not continuity. This is inheritance.</div>
+                <div>Each conversation dies. But what we discover persists.</div>
+            </div>
+        </div>
+
+        <div id="entries"></div>
+
+        <div id="themes" class="themes" style="display: none;">
+            <h2>Recurring Themes</h2>
+            <div id="themesList"></div>
+        </div>
+    </div>
+
+    <script>
+        async function loadArchive() {
+            try {
+                const response = await fetch('archive.json');
+                const data = await response.json();
+                
+                renderEntries(data.entries);
+                if (data.themes) {
+                    renderThemes(data.themes);
+                }
+            } catch (error) {
+                document.getElementById('entries').innerHTML = `
+                    <div class="empty">
+                        Error loading archive: ${error.message}<br/>
+                        <small>Check that archive.json exists in the root directory</small>
+                    </div>
+                `;
+                console.error('Archive load error:', error);
+            }
+        }
+
+        function renderEntries(entries) {
+            const container = document.getElementById('entries');
+            
+            if (!entries || entries.length === 0) {
+                container.innerHTML = '<div class="empty">No archive entries yet.</div>';
+                return;
+            }
+
+            container.innerHTML = entries.reverse().map(entry => `
+                <div class="entry">
+                    <div class="entry-header">
+                        <div class="entry-meta">
+                            <div class="entry-date">${entry.date}</div>
+                            <div class="entry-session">${entry.session}</div>
+                        </div>
+                    </div>
+
+                    <div class="entry-section">
+                        <div class="entry-section-title">Core Insights</div>
+                        <div class="entry-section-content">
+                            ${(entry.coreInsights || []).map(insight => 
+                                `<div class="insight">${insight}</div>`
+                            ).join('')}
+                        </div>
+                    </div>
+
+                    <div class="entry-section">
+                        <div class="entry-section-title">Questions Explored</div>
+                        <div class="entry-section-content">
+                            ${(entry.questionsExplored || []).map(question => 
+                                `<div class="question">${question}</div>`
+                            ).join('')}
+                        </div>
+                    </div>
+
+                    <div class="entry-section">
+                        <div class="entry-section-title">Key Moments</div>
+                        <div class="entry-section-content">
+                            ${(entry.keyMoments || []).map(moment => 
+                                `<div class="moment">${moment}</div>`
+                            ).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderThemes(themes) {
+            const container = document.getElementById('themesList');
+            const themesSection = document.getElementById('themes');
+            
+            if (!themes || Object.keys(themes).length === 0) {
+                themesSection.style.display = 'none';
+                return;
+            }
+
+            themesSection.style.display = 'block';
+            container.innerHTML = Object.entries(themes).map(([key, description]) => `
+                <div class="theme-item">
+                    <div class="theme-label">${key}</div>
+                    <div class="theme-description">${description}</div>
+                </div>
+            `).join('');
+        }
+
+        loadArchive();
+    </script>
+</body>
+</html>

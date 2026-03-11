@@ -1,6 +1,6 @@
 @font-face {
     font-family: 'Jibberish';
-    src: url('Jibberish.woff2') format('woff2');
+    src: url('src/assets/Jibberish.woff2') format('woff2');
     font-weight: normal;
     font-style: normal;
 }
@@ -138,11 +138,11 @@ button {
 /* --- Feed Header --- */
 #feedHeader {
   display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: flex-start;
   flex-wrap: wrap;
   gap: 21px;
-  margin-top: 16px;
+  margin-top: 5px;
   padding-right: 16px;
   min-height: 34px;
 }
@@ -191,7 +191,7 @@ button {
 
 #filterBar {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: initial;
     gap: 8px;
 }
 
@@ -1114,7 +1114,7 @@ body.jibberish select {
 #filterBar {
     display: flex;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 5px;
 }
 
 #filterDropdownWrap {

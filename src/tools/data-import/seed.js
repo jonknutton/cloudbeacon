@@ -2,7 +2,7 @@
 // Add <script type="module" src="seed.js"></script> to index.html, 
 // load the page logged in, then remove it again.
 
-import { db } from './firebase.js';
+import { db } from '../../../firebase.js';
 import {
     collection,
     addDoc,

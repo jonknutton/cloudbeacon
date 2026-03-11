@@ -11,7 +11,7 @@ export async function importFirstBill() {
         console.log('[ImportBills] Starting import of first bill from examplerss.xml...');
         
         // Fetch the XML file
-        const response = await fetch('../../../examplerss.xml');
+        const response = await fetch('./examplerss.xml');
         const xmlText = await response.text();
         
         // Parse as HTML (more lenient with namespaces)
@@ -75,7 +75,7 @@ export async function importAllBills() {
         console.log('[ImportBills] Starting import of ALL bills from examplerss.xml...');
         
         // Fetch the XML file
-        const response = await fetch('../../../examplerss.xml');
+        const response = await fetch('./examplerss.xml');
         const xmlText = await response.text();
         
         // Parse as HTML (more lenient with namespaces)

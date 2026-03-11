@@ -12,7 +12,7 @@ const EnhancedSharing = {
    */
   sharePost: function(authorName, content, projectId, mediaJson) {
     // Get current project/post URL
-    const postUrl = `${window.location.origin}/project.html?id=${projectId}`;
+    const postUrl = `${window.location.origin}/src/features/projects/projectpage/project.html?id=${projectId}`;
     const cloudBeaconUrl = window.location.origin;
 
     // Parse media if it comes as a string
@@ -53,7 +53,7 @@ const EnhancedSharing = {
    */
   shareProject: function(projectId, projectTitle, projectDescription, headerPictureUrl, category = '') {
     // Build the project link
-    const projectUrl = `${window.location.origin}/project.html?id=${projectId}`;
+    const projectUrl = `${window.location.origin}/src/features/projects/projectpage/project.html?id=${projectId}`;
     const charLimit = 297; // BlueSky limit (300 - 3 for buffer)
 
     let shareText;
