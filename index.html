@@ -26,16 +26,16 @@
             </button>
             <div id="menuList" style="display:none;">
                 <a class="menu-item" href="index.html">Home</a>
-                <a class="menu-item" href="market.html">Market</a>
+                <a class="menu-item" href="src/features/market/market.html">Market</a>
                 <a class="menu-item" href="translator/translator.html">Translator</a>
                 <a class="menu-item" href="#" onclick="openProfile()">Profile</a>
-                <a class="menu-item" href="#" onclick="MessagingUI.openModal(); return false;">💬 Messages <span id="messagesNotificationBadge" style="background:#ef4444; color:white; font-size:11px; font-weight:bold; border-radius:50%; width:20px; height:20px; display:none; align-items:center; justify-content:center; margin-left:auto;">0</span></a>
-                <a class="menu-item" href="#" onclick="if(typeof NotificationsUI !== 'undefined') NotificationsUI.openModal(); return false;">🔔 Notifications <span id="notificationsNotificationBadge" style="background:#ef4444; color:white; font-size:11px; font-weight:bold; border-radius:50%; width:20px; height:20px; display:none; align-items:center; justify-content:center; margin-left:auto;">0</span></a>
-                <a class="menu-item" href="search.html">🔍 Find</a>
+                <a class="menu-item" href="#" onclick="MessagingUI.openModal(); return false;">Messages <span id="messagesNotificationBadge" style="background:#ef4444; color:white; font-size:11px; font-weight:bold; border-radius:50%; width:20px; height:20px; display:none; align-items:center; justify-content:center; margin-left:auto;">0</span></a>
+                <a class="menu-item" href="#" onclick="if(typeof NotificationsUI !== 'undefined') NotificationsUI.openModal(); return false;">Notifications <span id="notificationsNotificationBadge" style="background:#ef4444; color:white; font-size:11px; font-weight:bold; border-radius:50%; width:20px; height:20px; display:none; align-items:center; justify-content:center; margin-left:auto;">0</span></a>
+                <a class="menu-item" href="src/features/search/search.html">Search</a>
                 
                 <!-- Support Section -->
                 <div class="menu-divider"></div>
-                <a class="menu-item" href="#" onclick="openBugReportModal(); return false;">🐛 Report Bug</a>
+                <a class="menu-item" href="#" onclick="openBugReportModal(); return false;">Support</a>
                 
                 <!-- Settings Section -->
                 <div class="menu-divider"></div>
@@ -160,7 +160,7 @@
 
             <section id="feed" style="display:none;">
                 <div id="feedHeader">
-                    <div id="filterBar" style="display:flex; gap:12px; align-items:center;">
+                    <div id="filterBar" style="display:flex; gap:5px; align-items:flex-start;">
                         <div class="filter-dropdown" id="filterDropdownWrap">
                             <button id="filterToggleBtn" onclick="toggleFilterPanel(event)">
                                 <span id="filterIcon">⚗</span> <span id="filterLabel">All</span> <span id="filterChevron">▾</span>
@@ -182,8 +182,8 @@
                                 </div>
                             </div>
                         </div>
-                        <input type="text" id="feedSearchInput" placeholder="Search posts..." style="flex-grow:1; margin-left:12px; padding:8px 12px; border:1px solid #444; border-radius:6px; background:#2a2218; color:#fff; font-size:14px;" onkeyup="searchFeedCount()" onkeydown="if(event.key==='Enter') searchFeedFiltered();">
-                        <button id="feedSearchBtn" onclick="searchFeedFiltered()" style="padding:8px 16px; border:1px solid #0ca678; border-radius:6px; background:#0ca678; color:#fff; font-size:14px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; margin-left:8px;">Search</button>
+                        <input type="text" id="feedSearchInput" placeholder="Search posts..." style="flex-grow:1; margin-left:5px; padding:8px 5px; border:1px solid #444; border-radius:6px; background:#333333; color:#fff; font-size:14px;" onkeyup="searchFeedCount()" onkeydown="if(event.key==='Enter') searchFeedFiltered();">
+                        <button id="feedSearchBtn" onclick="searchFeedFiltered()" style="padding:8px 16px; border:1px solid #333333; border-radius:6px; background:#333333; color:#fff; font-size:14px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; margin-left:5px;">Search</button>
                     </div>
                 </div>
 
@@ -408,23 +408,23 @@
         <!-- Floating post button — hidden until logged in -->
         <button id="floatingPostBtn" title="New post" onclick="openModal()" style="display:none;">✚</button>
 
-        <script src="loading.js"></script>
-        <script src="colors.js"></script>
-        <script src="colorSettings.js"></script>
-        <script src="colorSettingsUI.js"></script>
-        <script src="sharing.js"></script>
-        <script src="messaging.js"></script>
-        <script src="messagingUI.js"></script>
+        <script src="src/ui/loading.js"></script>
+        <script src="src/utils/colors.js"></script>
+        <script src="src/ui/colorSettings.js"></script>
+        <script src="src/ui/colorSettingsUI.js"></script>
+        <script src="src/utils/sharing.js"></script>
+        <script src="src/services/messaging.js"></script>
+        <script src="src/services/messagingUI.js"></script>
         <script src="notifications.js"></script>
-        <script src="loginHeckles.js"></script>
+        <script src="src/ui/loginHeckles.js"></script>
 
         <script type="module" src="firebase.js"></script>
         <script type="module" src="auth.js"></script>
-        <script type="module" src="posts.js"></script>
+        <script type="module" src="src/features/voting/posts.js"></script>
         <script type="module" src="app.js"></script>
         <script type="module" src="search.js"></script>
         
-        <script src="settings.js"></script>
+        <script src="src/features/settings/settings.js"></script>
         <script src="votingEligibility.js"></script>
         
         <script type="module">

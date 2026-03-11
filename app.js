@@ -1,10 +1,10 @@
 import { register, login, loginAsGuest, logout, watchAuthState } from './auth.js';
-import { createPost, getPosts, voteOnPost, addComment, getComments, deletePost, editPost } from './posts.js';
-import { createProject, voteOnProject } from './projects.js';
-import { syncLegislation, inspectBill, listAllBills, resetSyncCooldown } from './Legislation.js';
-import { importFirstBill, importAllBills } from './importBills.js';
+import { createPost, getPosts, voteOnPost, addComment, getComments, deletePost, editPost } from './src/features/voting/posts.js';
+import { createProject, voteOnProject } from './src/features/projects/projects.js';
+import { syncLegislation, inspectBill, listAllBills, resetSyncCooldown } from './src/services/Legislation.js';
+import { importFirstBill, importAllBills } from './src/tools/data-import/importBills.js';
 import { db, auth } from './firebase.js';
-import './follows.js';
+// import './follows.js'; // TODO: follows.js file moved/deleted - restore when ready
 import { collection, getDocs, deleteDoc, doc, query, where, addDoc, serverTimestamp, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // Expose auth globally for settings.js access
