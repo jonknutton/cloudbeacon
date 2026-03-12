@@ -6,7 +6,7 @@
     <title>Profile — Cloud Beacon</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../../style.css">
     <link rel="stylesheet" href="profile.css">
 </head>
 <body>
@@ -24,7 +24,7 @@
 
     <main class="profile-container" id="profileContainer">
         <!-- Floating home button -->
-        <a href="index.html" class="floating-home-btn" title="Back to Home">🌙</a>
+        <a href="../../../index.html" class="floating-home-btn" title="Back to Home">🌙</a>
 
         <!-- Custom Profile CSS (applied to profile-content) -->
         <style id="customProfileCSS"></style>
@@ -43,9 +43,9 @@
                 <div class="profile-col-2">
                     <p id="profileBio">No bio yet.</p>
                     <p id="profileJoined">Joined —</p>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                        <button id="followBtn" class="follow-btn" style="display:none; padding:8px 16px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px;" onclick="window.handleFollowClick()">Follow</button>
-                        <button id="messageBtn" class="message-btn" style="display:none; padding:8px 16px; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer; font-size:13px;" onclick="window.openMessageWindow()">💬 Message</button>
+                    <div>
+                        <button id="followBtn" class="follow-btn" onclick="window.handleFollowClick()">Follow</button>
+                        <button id="messageBtn" class="message-btn" onclick="window.openMessageWindow()">💬 Message</button>
                     </div>
                 </div>
             </div>
@@ -331,10 +331,9 @@
     <script src="../../utils/colors.js"></script>
     <script src="../settings/colorSettings.js"></script>
     <script src="../settings/settings.js"></script>
-    <script src="../voting/votingEligibility.js"></script>
+    <script src="../../features/voting/votingEligibility.js"></script>
     <script src="../../services/messaging.js"></script>
     <script src="../../services/messagingUI.js"></script>
-    <script type="module" src="firebase.js"></script>
     <script type="module" src="profile.js"></script>
     <script src="../../utils/sharing.js"></script>
 </body>

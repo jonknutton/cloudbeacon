@@ -12,7 +12,7 @@ import { budget2025 } from './budget2025_data.js';
 import { POLICY_PRIORITIES, PRIORITY_SCALE, PARTY_PRIORITY_SCORES, PARTY_POSITION_SOURCES, PARTY_PRIORITY_SOURCE_URLS, PARTY_PRIORITY_SOURCE_DATES, calculatePartyAlignment, getPartyInfo, getPartyNamesFromArray, convertResponsesToScores, generateManifestoFromAverageScores, getPartyScoresForPriority, calculateUserPartyAlignment, generatePersonalManifestoFromResponses, getUserBestMatchParties, getPositionSource } from './prioritiesData.js';
 
 // Import geolocation utility for IP-based country detection
-import { detectIPCountry, checkCountryMismatch } from '../../../core/geolocation.js';
+import { detectIPCountry, checkCountryMismatch } from './geolocation.js';
 
 console.log('[Governance Module] Loaded, auth object:', auth ? 'present' : 'missing');
 
@@ -601,7 +601,7 @@ function renderManifestoTab(manifesto) {
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
                 <div style="flex: 1;">
                     <div style="font-size: 0.9em; color: var(--color-fontSecondary);">Political Party Manifesto</div>
-                    <h1 style="margin: 8px 0; font-size: 1.8em;">${manifesto.party}</h1>
+                    <h1 style="margin: 8px 0; font-size: 1.8em; color: var(--color-buttonPrimary);">${manifesto.party}</h1>
                     ${manifesto.leader ? `<div style="color: var(--color-fontSecondary); margin-bottom: 10px;">Leader: ${manifesto.leader}</div>` : ''}
                     <p style="margin: 12px 0; font-size: 1.1em; font-weight: 500;">${manifesto.description || manifesto.keyline}</p>
                     ${manifesto.keyline && manifesto.keyline !== manifesto.description ? `<p style="margin: 0; color: var(--color-fontSecondary);">${manifesto.keyline}</p>` : ''}
@@ -618,8 +618,8 @@ function renderManifestoTab(manifesto) {
         // Community or personal manifesto header
         html += `
         <div style="margin-bottom: 20px;">
-            <h1 style="margin: 0 0 8px 0; font-size: 1.8em;">${manifesto.leader || 'Community Manifesto'}</h1>
-            <p style="margin: 0; color: var(--color-fontSecondary);">${manifesto.description || 'Collective policy positions'}</p>
+            <h1 style="margin: 0 0 8px 0; font-size: 1.8em;color: var(--color-fontSecondary);">${manifesto.leader || 'Community Manifesto'}</h1>
+            <p style="margin: 0; color: var(--color-fontPrimary);">${manifesto.description || 'Collective policy positions'}</p>
         </div>
         `;
     }
@@ -639,9 +639,9 @@ function renderManifestoTab(manifesto) {
 
     // Add transparency button for all manifestos
     html += `
-    <div style="margin-bottom: 20px; padding: 12px 16px; background: var(--color-background2); border-radius: 6px; display: flex; gap: 10px; align-items: center;">
-        <button onclick="openPriorityScoresModal()" style="padding: 10px 16px; background: transparent; color: var(--tab-color); border: 2px solid var(--tab-color); border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-            🔍 View Scoring Methodology
+    <div style="margin-bottom: 20px; padding: 12px 16px; background: var(--color-pageBackground); border-radius: 6px; display: flex; gap: 10px; align-items: center;">
+        <button onclick="openPriorityScoresModal()" style="padding: 10px 16px; background: var(--color-buttonSecondary); color: var(--color-buttonPrimary); border: 2px solid var(--color-buttonPrimary); border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+            View Scoring Methodology
         </button>
         <span style="font-size: 0.85em; color: var(--color-fontSecondary); flex: 1;">See how party scores are calculated for each priority</span>
     </div>
@@ -4412,7 +4412,7 @@ function openPriorityScoresModal() {
                 ">
                     <div>
                         <h2 style="margin: 0 0 8px 0; color: var(--color-fontPrimary);">
-                            🔍 Priority Scoring Transparency
+                            Priority Scoring Transparency
                         </h2>
                         <p style="margin: 0; color: var(--color-fontSecondary); font-size: 0.9em;">
                             Party scores and sources for all ${Object.values(POLICY_PRIORITIES).reduce((sum, area) => sum + area.questions.length, 0)} priorities

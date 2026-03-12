@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Governance Workspace - Cloud Beacon</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="project.css">
+    <link rel="stylesheet" href="../../../style.css">
+    <link rel="stylesheet" href="/src/features/projects/projectpage/project.css">
     <style>
         :root {
             --tab-color: #2196F3;
@@ -18,7 +18,7 @@
         }
 
         .governance-header {
-            background: linear-gradient(135deg, var(--color-buttonPrimary) 0%, #555 100%);
+            background: var(--color-buttonPrimary);
             color: var(--color-darkFontPrimary);
             padding: 30px;
             border-radius: 8px;
@@ -762,6 +762,7 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
+                    <a href="../../../index.html" title="Home" style="display:flex; align-items:center; justify-content:center; padding:10px 16px; background:rgba(255,255,255,0.2); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:6px; font-weight:600; cursor:pointer; font-size:0.9em; transition:all 0.2s ease; min-height: 43px; min-width: 75px; text-decoration:none;">Home</a>
                     <span id="autoSaveIndicator" style="font-size: 0.85em; color: rgba(255,255,255,0.8); opacity: 0.5; min-width: 80px; text-align: right;">Auto-save enabled</span>
                     <button onclick="window.loadVoteProfile()" style="padding: 10px 16px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9em; transition: all 0.2s ease;">Load Profile</button>
                     <button onclick="window.saveVoteProfile()" style="padding: 10px 16px; background: white; color: var(--color-buttonPrimary); border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9em; transition: all 0.2s ease;">Save Profile</button>
@@ -845,7 +846,7 @@
         <!-- Leaders Tab -->
         <div class="governance-panel paper-sheet" id="panel-leaders">
             <h2 style="margin: 0 0 20px 0;">Political Leadership & Positions</h2>
-            <p style="color: var(--color-fontSecondary); margin: 0 0 20px 0;">Information about key political positions, elected officials, and upcoming elections</p>
+            <p style="color: var(--color-buttonPrimary); margin: 0 0 20px 0;">Information about key political positions, elected officials, and upcoming elections</p>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;" id="leadersContent">
                 <p>Loading leaders data...</p>
@@ -1167,7 +1168,7 @@
     <script src="import_mps_fallback.js"></script>
     <script src="load_mps_from_csv.js"></script>
     
-    <script src="../../../standardizedManifestos.js"></script>
+    <script src="/src/features/governance/standardizedManifestos.js"></script>
     <script type="module" src="governance.js"></script>
     <script src="lawTab.js"></script>
 </body>

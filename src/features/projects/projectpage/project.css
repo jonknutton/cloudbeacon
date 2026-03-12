@@ -76,6 +76,7 @@ body {
 }
 
 .folder-workspace {
+    width: 90%;
     max-width: 100%;
     margin: 24px auto;
     padding: 0 12px 40px;
@@ -97,6 +98,7 @@ body {
     }
 
     .folder-workspace {
+        width: auto;
         max-width: 720px;
         margin: 32px auto;
         padding: 0 16px 60px;
@@ -118,6 +120,7 @@ body {
     }
 
     .folder-workspace {
+        width: auto;
         max-width: 960px;
         margin: 48px auto;
         padding: 0 24px 80px;
@@ -201,7 +204,12 @@ body {
     min-height: 400px;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
     position: relative;
-    overflow: hidden;
+    overflow: visible;  /* Changed from hidden to allow tentacle widget to display properly */
+}
+
+/* Allow overflow for tentacle widget in plan panel */
+#panel-plan {
+    overflow: visible;
 }
 
 /* Subtle paper texture line */
@@ -300,6 +308,7 @@ body {
 
 .subpanel {
     display: none;
+    overflow: visible;  /* Ensure nothing is clipped */
 }
 
 .subpanel.active {
@@ -745,6 +754,81 @@ body {
 
     .update-item p {
         font-size: 14px;
+    }
+}
+
+/* ============================================
+   TENTACLE WIDGET - Activity Visualization
+   ============================================ */
+#tentacleCanvas {
+    display: block;
+    margin: 0 auto;
+    /* Let JavaScript control sizing via inline styles */
+}
+
+.tentacle-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    width: 100%;
+    max-width: none;  /* Allow to grow as needed */
+    margin: 20px auto;
+    overflow: visible;
+    overflow-x: auto;  /* Allow horizontal scroll if needed */
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.tentacle-stats {
+    margin-top: 14px;
+    display: flex;
+    gap: 20px;
+    font-size: 12px;
+    color: #475569;
+    justify-content: center;
+}
+
+.tentacle-stats b {
+    color: #7dd3fc;
+}
+
+.tentacle-stats .done-count {
+    color: #4ade80;
+}
+
+.tentacle-stats .free-count {
+    color: #94a3b8;
+}
+
+/* Mobile responsive tentacle widget */
+@media (max-width: 768px) {
+    .tentacle-container {
+        max-width: 90vw;
+        padding: 15px 5px;
+    }
+    
+    #tentacleCanvas {
+        max-width: 90vw;
+    }
+    
+    .tentacle-stats {
+        font-size: 11px;
+        gap: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .tentacle-container {
+        max-width: 100vw;
+        padding: 10px 5px;
+    }
+    
+    .tentacle-stats {
+        font-size: 10px;
+        gap: 10px;
+        flex-wrap: wrap;
     }
 }
 
@@ -1639,7 +1723,7 @@ body {
 
 /* Collapsible WBS Tree */
 .wbs-tree {
-    margin-bottom: 20px;
+    margin-bottom: 5px;
     overflow-x: auto;
     overflow-y: visible;
     padding-right: 20px;

@@ -92,7 +92,7 @@ const VotingEligibility = {
      */
     async getUserAccountDetails(userId) {
         try {
-            const { db } = await import('./firebase.js');
+            const { db } = await import('../../../firebase.js');
             const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
             const userDoc = await getDoc(doc(db, 'users', userId));
@@ -185,7 +185,7 @@ const VotingEligibility = {
      */
     async checkCurrentUserVoting(legislationCountries) {
         try {
-            const { auth } = await import('./firebase.js');
+            const { auth } = await import('../../../firebase.js');
             const user = auth.currentUser;
 
             if (!user) {

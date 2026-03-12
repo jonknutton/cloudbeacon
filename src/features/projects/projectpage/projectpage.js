@@ -1,6 +1,8 @@
 import { getProject, getFeedItem, voteOnProject, voteOnFeedItem } from '../projects.js';
-import { watchAuthState } from '../../../../auth.js';
+import { findMatchingPetitions } from '../../../services/petitionMatcher.js';
+import { watchAuthState } from '../../../core/auth.js';
 import { db, auth } from '../../../../firebase.js';
+import { logActivity } from '../../../services/ActivityService.js';
 import {
     collection, addDoc, getDocs, orderBy, query,
     serverTimestamp, doc, updateDoc, getDoc, setDoc,
@@ -128,8 +130,11 @@ async function loadProject() {
         loadChat();
         loadUpdates();
         loadTeam();
-        initializePlanTab();
+        await initializePlanTab();
         updateLegislativeTabVisibility();
+        updateTentacleActivities();
+        // Defer tentacle initialization to next frame to ensure layout is calculated
+        requestAnimationFrame(() => initTentacleWidget());
     } catch (err) {
         handleError(err, 'loading project', { 
             notify: true,
@@ -162,7 +167,7 @@ function updateLegislativeTabVisibility() {
 function renderOverview() {
     const item = currentItem;
     const cat  = getCategory();
-    const catLabels = { legislative: '🏛️ Legislative', physical: '🏗️ Physical', inventive: '💡 Inventive', community: '🤝 Community' };
+    const catLabels = { legislative: 'Legislative', physical: 'Physical', inventive: 'Inventive', community: 'Community' };
 
     document.title = item.title + ' — Cloud Beacon';
 
@@ -316,16 +321,59 @@ async function loadVoteStats() {
         setElementText('approvalPct', total > 0 ? `${approvalPct}%` : '—');
         setElementText('approvalCaption', total > 0
             ? `${up} support · ${down} oppose` : 'No votes yet');
+        
+        // Set approval bar
+        const aBar = getSafeElement('approvalBar');
+        if (aBar) {
+            aBar.style.width      = total > 0 ? `${approvalPct}%` : '0%';
+            aBar.style.background = barColor(approvalPct);
+        }
     } catch (err) {
         handleError(err, 'loading vote statistics', {
             notify: false, // Silent - this is secondary data
             context: { projectId, itemType }
         });
     }
-    const aBar = document.getElementById('approvalBar');
-    aBar.style.width      = total > 0 ? `${approvalPct}%` : '0%';
-    aBar.style.background = barColor(approvalPct);
 }
+
+// Search for related Parliament petitions (for legislation type)
+window.searchRelatedPetitions = async function() {
+    if (itemType !== 'legislation') {
+        alert('Only legislation items can be matched to petitions');
+        return;
+    }
+    
+    try {
+        const title = currentItem?.title || '';
+        const description = currentItem?.content || '';
+        
+        if (!title) {
+            alert('Cannot search: legislation title not available');
+            return;
+        }
+        
+        console.log('[Project] Searching for related petitions for:', title);
+        
+        const petitions = await findMatchingPetitions(title, description);
+        
+        if (petitions && petitions.length > 0) {
+            // Display petitions in a new window
+            let petitionsHTML = '<h3>Related Parliament Petitions</h3><ul style="max-height:600px;overflow:auto;">';
+            petitions.forEach(p => {
+                petitionsHTML += `<li><a href="https://petition.parliament.uk/petitions/${p.id}" target="_blank">${p.title}</a> (${p.signatureCount || 0} signatures)</li>`;
+            });
+            petitionsHTML += '</ul>';
+            
+            const w = window.open();
+            w.document.write(petitionsHTML);
+        } else {
+            alert('No related petitions found');
+        }
+    } catch (err) {
+        console.error('[Project] Error searching petitions:', err);
+        alert('Error searching for petitions: ' + err.message);
+    }
+};
 
 function barColor(pct) {
     if (pct >= 66) return 'linear-gradient(90deg, #51cf66, #2f9e44)';
@@ -2382,7 +2430,7 @@ async function confirmPlaceBid() {
     
     const basePath = itemType === 'legislation' ? 'feed' : 'projects';
     try {
-        await addDoc(collection(db, basePath, projectId, 'tasks', taskId, 'bids'), {
+        const bidRef = await addDoc(collection(db, basePath, projectId, 'plan_tasks', taskId, 'bids'), {
             amount: amount,
             bidderName: name,
             bidderCompany: company || null,
@@ -2391,6 +2439,37 @@ async function confirmPlaceBid() {
             notes: notes || null,
             createdAt: serverTimestamp()
         });
+        
+        // Log bid activity if user is logged in
+        const user = auth.currentUser;
+        if (user) {
+            try {
+                const taskSnap = await getDoc(doc(db, basePath, projectId, 'plan_tasks', taskId));
+                const taskData = taskSnap.exists() ? taskSnap.data() : {};
+                const projectSnap = await getDoc(doc(db, basePath, projectId));
+                const projectData = projectSnap.exists() ? projectSnap.data() : {};
+                
+                await logActivity({
+                    type: 'bid_created',
+                    contentId: bidRef.id,
+                    contentType: 'bid',
+                    metadata: {
+                        projectId: projectId,
+                        projectTitle: projectData.title || 'Project',
+                        projectCategory: projectData.category,
+                        taskId: taskId,
+                        taskName: taskData.name || 'Task',
+                        bidAmount: amount,
+                        bidderName: name,
+                        summary: `Bid £${amount} on task "${taskData.name || 'Unnamed'}"`
+                    }
+                });
+            } catch (actErr) {
+                console.error('Error logging bid activity:', actErr);
+                // Don't fail the bid creation if logging fails
+            }
+        }
+        
         alert('Bid submitted successfully!');
         closeBidModal();
         renderFundBids();
@@ -2909,6 +2988,457 @@ window.chatVote             = chatVote;
 window.openChatReplyForm    = openChatReplyForm;
 window.closeChatReplyForm   = closeChatReplyForm;
 window.submitChatReply      = submitChatReply;
+window.openJoinProjectForm  = openJoinProjectForm;
+window.handleFollowProject  = handleFollowProject;
+
+// ─────────────────────────────────────────────────────────────────────
+// TENTACLE WIDGET - Activity Visualization
+// ─────────────────────────────────────────────────────────────────────
+
+const TENTACLE_NUM = 8;
+let tentacleTasks = [];
+let tentaclePhase = 0;
+let tentacleNextId = 1;
+
+function updateTentacleActivities() {
+    // Extract activities from the projection plan data
+    
+    // Clear existing tasks
+    tentacleTasks = [];
+    tentacleNextId = 1;
+    
+    console.log('[Tentacle] updating - planData.activities:', planData?.activities?.length);
+    console.log('[Tentacle] updating - planData.tasks:', planData?.tasks?.length);
+    
+    if (planData && planData.activities && Array.isArray(planData.activities)) {
+        // Get only TOP LEVEL activities (no parentId) to avoid including sub-activities
+        const topLevelActivities = planData.activities
+            .filter(a => !a.parentId)
+            .slice(0, TENTACLE_NUM);
+        
+        console.log('[Tentacle] Top-level activities:', topLevelActivities.length);
+        
+        topLevelActivities.forEach((activity, idx) => {
+            // Get all tasks for this activity
+            const activityTasks = planData.tasks 
+                ? planData.tasks.filter(t => t.activityId === activity.id)
+                : [];
+            
+            // Store complete activity data with all tasks
+            tentacleTasks.push({
+                id: tentacleNextId++,
+                activityId: activity.id,
+                activityName: activity.name,
+                tasks: activityTasks.map(t => ({
+                    id: t.id,
+                    name: t.name || t.text || '?',
+                    done: t.status === 'Complete' || t.done || false
+                })),
+                slot: idx
+            });
+        });
+        
+        console.log('[Tentacle] Final tentacleTasks:', tentacleTasks.length, tentacleTasks.map(t => ({ name: t.activityName, taskCount: t.tasks.length })));
+    } else {
+        console.log('[Tentacle] No activities found - planData structure:', Object.keys(planData || {}));
+    }
+}
+
+function initTentacleWidget() {
+    console.log('[Tentacle] initTentacleWidget called - tentacleTasks:', tentacleTasks);
+    
+    const canvas = document.getElementById('tentacleCanvas');
+    if (!canvas) {
+        console.log('[Tentacle] Canvas not found');
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Responsive sizing based on container
+    const dpr = window.devicePixelRatio || 1;
+    const container = canvas.parentElement || document.body;
+    
+    // Use offsetWidth/offsetHeight for more reliable measurements during initial layout
+    // getBoundingClientRect() can return 0 if layout hasn't been calculated yet
+    let containerWidth = container.offsetWidth || container.getBoundingClientRect().width;
+    
+    // Calculate display size (max 600px, fit to container with padding)
+    const PADDING = 40;  // Padding to prevent edge clipping
+    let displayW = Math.max(300, Math.min(containerWidth - PADDING, 600));
+    let displayH = displayW;  // Keep square
+    
+    // Set canvas buffer size (device pixels) and CSS size (display pixels)
+    let W = displayW * dpr;
+    let H = displayH * dpr;
+    canvas.width = W;
+    canvas.height = H;
+    canvas.style.width = displayW + 'px';
+    canvas.style.height = displayH + 'px';
+    ctx.scale(dpr, dpr);
+    
+    // Logical coordinates (used in drawing) - keep full canvas space for consistent coordinate system
+    const logicalW = displayW;
+    const logicalH = displayH;
+    const CX = logicalW / 2;
+    const CY = logicalH / 2;
+    
+    // Scale all dimensions based on canvas size (reference: 500px)
+    const scale = logicalW / 500;
+    const HUB_R = 54 * scale;
+    const BUBBLE_OFFSET = 15 * scale;
+    const BUBBLE_W = 110 * scale;
+    const BUBBLE_H = 55 * scale;
+    
+    // Calculate ARM_LEN adaptively to prevent clipping
+    // Add safety margin (25px) to ensure bubbles don't exceed rendereable bounds
+    const SAFETY_MARGIN = 55;
+    const maxArmReach = (logicalW / 2) - BUBBLE_OFFSET - (BUBBLE_W / 2) - SAFETY_MARGIN;
+    const ARM_LEN = Math.max(80 * scale, maxArmReach);
+    
+    function bezier(p0, p1, p2, p3, t) {
+        const u = 1 - t;
+        return {
+            x: u**3*p0.x + 3*u**2*t*p1.x + 3*u*t**2*p2.x + t**3*p3.x,
+            y: u**3*p0.y + 3*u**2*t*p1.y + 3*u*t**2*p2.y + t**3*p3.y,
+        };
+    }
+    
+    function getArm(i, ph) {
+        const a = (i / TENTACLE_NUM) * Math.PI * 2 - Math.PI / 2;
+        const task = tentacleTasks.find(t => t.slot === i);
+        const busy = task && !task.done;
+        const w1 = Math.sin(ph + i * 1.1) * (busy ? 7 : 22);
+        const w2 = Math.cos(ph * 0.7 + i) * (busy ? 5 : 16);
+        const p0 = { x: CX + Math.cos(a) * HUB_R, y: CY + Math.sin(a) * HUB_R };
+        const p1 = {
+            x: p0.x + Math.cos(a) * ARM_LEN * 0.33 + Math.cos(a + Math.PI/2) * w1,
+            y: p0.y + Math.sin(a) * ARM_LEN * 0.33 + Math.sin(a + Math.PI/2) * w1,
+        };
+        const p2 = {
+            x: p0.x + Math.cos(a) * ARM_LEN * 0.66 + Math.cos(a + Math.PI/2) * w2,
+            y: p0.y + Math.sin(a) * ARM_LEN * 0.66 + Math.sin(a + Math.PI/2) * w2,
+        };
+        const p3 = {
+            x: p0.x + Math.cos(a) * ARM_LEN + Math.cos(a + Math.PI/2) * w1 * 0.4,
+            y: p0.y + Math.sin(a) * ARM_LEN + Math.sin(a + Math.PI/2) * w1 * 0.4,
+        };
+        return { p0, p1, p2, p3, a, task };
+    }
+    
+    function draw() {
+        ctx.clearRect(0, 0, logicalW, logicalH);
+        
+        // Hub glow
+        const hg = ctx.createRadialGradient(CX, CY, 30, CX, CY, 80);
+        hg.addColorStop(0, 'rgba(56,189,248,0.12)');
+        hg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = hg;
+        ctx.beginPath();
+        ctx.arc(CX, CY, 80, 0, Math.PI*2);
+        ctx.fill();
+        
+        const full = tentacleTasks.filter(t => !t.done).length >= TENTACLE_NUM;
+        
+        // Draw arms
+        for (let i = 0; i < TENTACLE_NUM; i++) {
+            const { p0, p1, p2, p3, a, task } = getArm(i, tentaclePhase);
+            const done = task && task.done;
+            const active = task && !task.done;
+            const color = done ? '#4ade80' : active ? '#38bdf8' : '#475569';
+            const glow = done ? '#4ade8044' : active ? '#38bdf844' : 'transparent';
+            
+            // Arm glow
+            ctx.save();
+            ctx.strokeStyle = glow;
+            ctx.lineWidth = 10;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(p0.x, p0.y);
+            ctx.bezierCurveTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+            ctx.stroke();
+            ctx.restore();
+            
+            // Arm body
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(p0.x, p0.y);
+            ctx.bezierCurveTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+            ctx.stroke();
+            ctx.restore();
+            
+            // Segment rings
+            [0.2, 0.4, 0.6, 0.8].forEach((t, si) => {
+                const pt = bezier(p0, p1, p2, p3, t);
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 4.5 - si*0.5, 0, Math.PI*2);
+                ctx.fillStyle = '#0f172a';
+                ctx.fill();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            });
+            
+            // Claw
+            const clawA = Math.atan2(p3.y - p2.y, p3.x - p2.x);
+            const spread = active ? 0.18 : 0.44;
+            [-1, 1].forEach(side => {
+                const cx2 = p3.x + Math.cos(clawA + side * spread) * 20;
+                const cy2 = p3.y + Math.sin(clawA + side * spread) * 20;
+                ctx.beginPath();
+                ctx.moveTo(p3.x, p3.y);
+                ctx.lineTo(cx2, cy2);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            });
+            
+            // Task bubble with activity and task list
+            if (task) {
+                const bx = p3.x + Math.cos(a) * BUBBLE_OFFSET;
+                const by = p3.y + Math.sin(a) * BUBBLE_OFFSET;
+                
+                // Check if all tasks are done for activity coloring
+                const allTasksDone = task.tasks && task.tasks.length > 0 && task.tasks.every(t => t.done);
+                
+                // Scale bubble based on number of tasks
+                const taskCount = task.tasks ? task.tasks.length : 0;
+                const bh = Math.max(BUBBLE_H, (BUBBLE_H + 14 * scale * Math.max(0, taskCount - 1)));
+                const bw = BUBBLE_W;
+                const bxOff = bx - bw / 2;
+                const byOff = by - bh / 2;
+                
+                // Bubble bg (green if all tasks done)
+                ctx.save();
+                if (allTasksDone) {
+                    ctx.fillStyle = 'rgba(20,83,45,0.93)';
+                    ctx.strokeStyle = '#4ade80';
+                } else {
+                    ctx.fillStyle = 'rgba(12,26,52,0.93)';
+                    ctx.strokeStyle = '#38bdf8';
+                }
+                ctx.lineWidth = 1.5;
+                roundRect(ctx, bxOff, byOff, bw, bh, 9);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+                
+                // Activity name (header)
+                ctx.save();
+                ctx.fillStyle = allTasksDone ? '#bbf7d0' : '#e0f2fe';
+                const headerFontSize = Math.max(8, 10 * scale);
+                ctx.font = `bold ${headerFontSize}px Segoe UI`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                let actName = task.activityName || 'Activity';
+                if (actName.length > 12 * scale) actName = actName.slice(0, Math.max(8, Math.floor(12 * scale))) + '…';
+                ctx.fillText(actName, bx, byOff + 4);
+                ctx.restore();
+                
+                // Task list
+                if (taskCount > 0) {
+                    ctx.save();
+                    const taskFontSize = Math.max(7, 9 * scale);
+                    ctx.font = `${taskFontSize}px Segoe UI`;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'middle';
+                    
+                    const lineHeight = 12 * scale;
+                    const maxTaskNameLen = 14;
+                    
+                    task.tasks.forEach((t, idx) => {
+                        const y = byOff + 18 * scale + idx * lineHeight;
+                        
+                        // Task name
+                        ctx.fillStyle = allTasksDone ? '#bbf7d0' : (t.done ? '#4ade80' : '#e0f2fe');
+                        let taskName = t.name;
+                        if (taskName.length > maxTaskNameLen) taskName = taskName.slice(0, maxTaskNameLen - 1) + '…';
+                        ctx.fillText(taskName, bxOff + 6, y);
+                        
+                        // Store button positions for click detection
+                        if (!task._taskButtons) task._taskButtons = [];
+                        const btnX = bxOff + bw - 18;
+                        const btnY = y - 5;
+                        task._taskButtons[idx] = {
+                            x: btnX,
+                            y: btnY,
+                            w: 14,
+                            h: 10,
+                            taskId: t.id,
+                            taskName: t.name,
+                            done: t.done
+                        };
+                        
+                        // Draw task button
+                        ctx.save();
+                        // Button background
+                        ctx.fillStyle = t.done ? '#4ade8055' : '#38bdf855';
+                        ctx.fillRect(btnX, btnY, 14, 10);
+                        
+                        // Button border
+                        ctx.strokeStyle = t.done ? '#4ade80' : '#38bdf8';
+                        ctx.lineWidth = 0.8;
+                        ctx.strokeRect(btnX, btnY, 14, 10);
+                        
+                        // Button icon
+                        ctx.fillStyle = t.done ? '#4ade80' : '#38bdf8';
+                        ctx.font = `bold ${Math.max(6, 8 * scale)}px Segoe UI`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(t.done ? '✓' : '×', btnX + 7, btnY + 5);
+                        ctx.restore();
+                    });
+                    ctx.restore();
+                }
+                
+                task._bx = bxOff;
+                task._by = byOff;
+                task._bw = bw;
+                task._bh = bh;
+                task._bx_center = bx;
+                task._allTasksDone = allTasksDone;
+            } else {
+                const pt = p3;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 6, 0, Math.PI*2);
+                ctx.fillStyle = '#0f172a';
+                ctx.fill();
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+        }
+        
+        // Hub body
+        ctx.beginPath();
+        ctx.arc(CX, CY, HUB_R, 0, Math.PI*2);
+        ctx.fillStyle = '#0c1a2e';
+        ctx.fill();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.arc(CX, CY, 32, 0, Math.PI*2);
+        ctx.fillStyle = '#071020';
+        ctx.fill();
+        ctx.strokeStyle = '#1e3a5f';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        
+        const pulse = 14 + Math.sin(tentaclePhase * 2) * 3;
+        ctx.beginPath();
+        ctx.arc(CX, CY, pulse, 0, Math.PI*2);
+        ctx.fillStyle = full ? '#7f1d1d' : '#0f2d4a';
+        ctx.fill();
+        ctx.strokeStyle = full ? '#f87171' : '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        ctx.font = '18px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = full ? '#fca5a5' : '#7dd3fc';
+        ctx.fillText(full ? '!' : '⚙', CX, CY + 1);
+    }
+    
+    function roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.arcTo(x + w, y, x + w, y + r, r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+        ctx.lineTo(x + r, y + h);
+        ctx.arcTo(x, y + h, x, y + h - r, r);
+        ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r);
+        ctx.closePath();
+    }
+    
+    function updateStats() {
+        // Count individual tasks across all activities
+        let totalTasks = 0;
+        let doneTasks = 0;
+        
+        for (const activity of tentacleTasks) {
+            if (activity.tasks) {
+                totalTasks += activity.tasks.length;
+                doneTasks += activity.tasks.filter(t => t.done).length;
+            }
+        }
+        
+        const activeTasks = totalTasks - doneTasks;
+        const activeEl = document.getElementById('activeCount');
+        const doneEl = document.getElementById('doneCount');
+        const freeEl = document.getElementById('freeCount');
+        if (activeEl) activeEl.textContent = activeTasks;
+        if (doneEl) doneEl.textContent = doneTasks;
+        if (freeEl) freeEl.textContent = Math.max(0, TENTACLE_NUM - tentacleTasks.filter(a => a.tasks && a.tasks.length > 0).length);
+    }
+    
+    canvas.addEventListener('click', async (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = logicalW / rect.width, scaleY = logicalH / rect.height;
+        const mx = (e.clientX - rect.left) * scaleX;
+        const my = (e.clientY - rect.top) * scaleY;
+        
+        for (const activity of tentacleTasks) {
+            if (!activity._bx) continue;
+            
+            // Check if click in bubble area
+            if (mx >= activity._bx && mx <= activity._bx + activity._bw && my >= activity._by && my <= activity._by + activity._bh) {
+                // Check if click on a task button
+                if (activity._taskButtons) {
+                    for (let i = 0; i < activity._taskButtons.length; i++) {
+                        const btn = activity._taskButtons[i];
+                        // Generous click area (±3 px tolerance)
+                        if (mx >= btn.x - 3 && mx <= btn.x + btn.w + 3 && my >= btn.y - 2 && my <= btn.y + btn.h + 2) {
+                            // Task button clicked - toggle done status in Firestore
+                            try {
+                                const basePath = itemType === 'legislation' ? 'feed' : 'projects';
+                                const newStatus = btn.done ? 'Not Started' : 'Complete';
+                                await updateDoc(doc(db, basePath, projectId, 'plan_tasks', btn.taskId), {
+                                    status: newStatus,
+                                    done: !btn.done
+                                });
+                                
+                                // Update local state
+                                activity.tasks[i].done = !btn.done;
+                                console.log('[Tentacle] Marked task', btn.taskName, 'as', newStatus);
+                            } catch (err) {
+                                console.error('[Tentacle] Error updating task:', err);
+                            }
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    function loop(ts) {
+        tentaclePhase = ts * 0.001;
+        draw();
+        requestAnimationFrame(loop);
+    }
+    
+    updateStats();
+    requestAnimationFrame(loop);
+    
+    // Handle window resize to reinitialize canvas
+    window.addEventListener('resize', () => {
+        // Small delay to avoid rapid re-initialization
+        clearTimeout(window.tentacleResizeTimer);
+        window.tentacleResizeTimer = setTimeout(() => {
+            initTentacleWidget();
+        }, 300);
+    });
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // UPDATES TAB

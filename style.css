@@ -10,7 +10,7 @@
    ============================================ */
 :root {
     --color-buttonPrimary: #333333;
-    --color-buttonSecondary: #e0e0e0;
+    --color-buttonSecondary: #888888;
     --color-fontPrimary: #333333;
     --color-fontSecondary: #888888;
     --color-pageBackground: #f0f0f0;
@@ -41,10 +41,16 @@
 body {
     font-family: Arial, Helvetica, sans-serif;
     max-width: 700px;
-    margin: 0px;
+    margin: 0 auto;
     padding: 2px;
     background-color: var(--color-pageBackground);
-    font-size: 16px;
+    font-size: 21px;
+}
+
+@media (min-width: 1024px) {
+    body {
+        max-width: none;  /* Remove max-width constraint on large screens to allow full layout */
+    }
 }
 
 /* Loading Overlay */
@@ -115,7 +121,7 @@ body {
 }
 
 h1 {
-    color: var(--color-fontPrimary);
+    color: var(--color-darkFontPrimary);
 }
 
 input {
@@ -142,9 +148,15 @@ button {
   justify-content: flex-start;
   flex-wrap: wrap;
   gap: 21px;
-  margin-top: 5px;
+  margin-top: 0;
   padding-right: 16px;
-  min-height: 34px;
+  padding-left: 16px;
+  min-height: 89px;
+  position: sticky;
+  top: 0;
+  background: var(--color-pageBackground);
+  z-index: 100;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 /* --- Filter Dropdown --- */
@@ -228,6 +240,8 @@ button {
   padding-bottom: 8px;
   border-right: 4px solid #524e4e;
   border-bottom: 2px solid #524e4e;
+  margin-left: 13%;
+  margin-right: 13%;
 }
 
 /* --- Folder Tiles (project & legislation cards in feed) --- */
@@ -404,15 +418,15 @@ button {
 }
 
 .votes button {
-  font-size: 13px;
+  font-size: 21px;
   background: var(--color-buttonSecondary);
   color: var(--color-fontPrimary);
   border: 1px solid var(--color-border);
   cursor: pointer;
-  padding: 1px;
-  border-radius: 8px;
-  min-width: 34px;
-  min-height: 22px;
+  padding: 8px;
+  border-radius: 5px;
+  min-width: 89px;
+  min-height: 55px;
 }
 
 .votes button:hover {
@@ -420,10 +434,11 @@ button {
 }
 
 .votes span {
-  font-weight: bold;
-  min-width: 21px;
+font-weight: bold;
+  color: var(--color-fontPrimary);
   text-align: center;
-  font-size: 21px;
+  font-size: 34px;
+  min-width: 89px;
 }   
 
 /* --- Comments --- */
@@ -771,8 +786,8 @@ button {
     position: fixed;
     right: 21px;
     bottom: 21px;
-    width: 55px;
-    height: 55px;
+    width: 89px;
+    height: 89px;
     border-radius: 50%;
     background: var(--color-buttonPrimary);
     color: white;
@@ -857,11 +872,11 @@ button {
   gap: 13px;
   align-items: center;
   margin-bottom: 2px;
-  font-size: 25px;
+  font-size: 34px;
 }
 .avatar {
-    width: 55px;
-    height: 55px;
+    width: 98px;
+    height: 89px;
     border-radius: 50%;
     background: #ddd;
     color: var(--color-fontPrimary);
@@ -869,27 +884,35 @@ button {
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 14px;
+    font-size: 21px;
 }
 .post-meta {
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: space-between;
   width: 100%;
-}
-.post-meta > div:first-child {
-  flex: 0 0 auto;
+  gap: 12px;
 }
 .post-meta .author {
     font-weight: 700;
     color: #222;
+    flex: 0 0 auto;
 }
 .post-meta .time {
   color: #888;
   font-size: 13px;
   padding: 0;
-  margin-left: auto;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+.post-meta .follow-btn {
+  flex-shrink: 0;
+}
+.post-meta-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
 }
 .post-actions {
@@ -903,13 +926,32 @@ button {
   border: #000;
   color: var(--color-fontPrimary);
   cursor: pointer;
-  font-size: 16px;
-  padding: 1px;
-  border-radius: 8px;
-  min-width: 34px;
+  font-size: 21px;
+  padding: 8px;
+  border-radius: 5px;
+  min-width: 89px;
+  min-height: 55px;
 }
 .post-action-btn:hover { color: #111; }
 .post-owner-actions { margin-left: auto; display:flex; gap:8px; }
+
+/* --- Follow Button (on posts/feed) --- */
+.follow-btn {
+  font-size: 21px;
+  padding: 8px 16px;
+  background: var(--color-buttonPrimary);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-left: auto;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+.follow-btn:hover {
+  background: #444;
+}
 
 /* --- Project creation modal --- */
 #projectForm select {
@@ -1115,6 +1157,7 @@ body.jibberish select {
     display: flex;
     align-items: center;
     margin-bottom: 5px;
+    margin-top:34px;
 }
 
 #filterDropdownWrap {
@@ -1296,13 +1339,13 @@ body.jibberish select {
 .project-tag-badge {
     padding: 8px 12px;
     width: auto;
-    min-width: 100px;
+    min-width: 233px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 21px;
     white-space: nowrap;
     flex-shrink: 0;
 }
@@ -1315,7 +1358,7 @@ body.jibberish select {
     align-items: center;
     color: #fff;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 21px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1364,4 +1407,12 @@ footer {
 
 footer p {
     margin: 0;
+}
+
+/* Mobile responsive - remove post horizontal margins on small screens */
+@media (max-width: 1023px) {
+    .post {
+        margin-left: 0;
+        margin-right: 0;
+    }
 }

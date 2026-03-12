@@ -1,7 +1,8 @@
 import { db, auth } from '../../../firebase.js';
 import { watchAuthState } from '../../../auth.js';
+import { logActivity } from '../../../services/ActivityService.js';
 import {
-    collection, getDocs, query, where, orderBy, addDoc, serverTimestamp
+    collection, getDocs, query, where, orderBy, addDoc, serverTimestamp, getDoc, doc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // Global data
@@ -436,6 +437,33 @@ async function submitBidFromMarket(event) {
         const docRef = await addDoc(collection(db, 'projects', projectId, 'plan_tasks', taskId, 'bids'), bidData);
         
         console.log('✓ Bid saved successfully with ID:', docRef.id);
+        
+        // Log bid activity
+        try {
+            const taskSnap = await getDoc(doc(db, 'projects', projectId, 'plan_tasks', taskId));
+            const taskData = taskSnap.exists() ? taskSnap.data() : {};
+            const projectSnap = await getDoc(doc(db, 'projects', projectId));
+            const projectData = projectSnap.exists() ? projectSnap.data() : {};
+            
+            await logActivity({
+                type: 'bid_created',
+                contentId: docRef.id,
+                contentType: 'bid',
+                metadata: {
+                    projectId: projectId,
+                    projectTitle: projectData.title || 'Project',
+                    projectCategory: projectData.category,
+                    taskId: taskId,
+                    taskName: taskData.name || 'Task',
+                    bidAmount: amount,
+                    bidderName: bidderName,
+                    summary: `Bid £${amount} on task "${taskData.name || 'Unnamed'}"`
+                }
+            });
+        } catch (actErr) {
+            console.error('Error logging bid activity:', actErr);
+            // Don't fail the bid creation if logging fails
+        }
         
         // Send bid notification to project owner
         try {

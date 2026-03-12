@@ -15,6 +15,7 @@ import {
 } from '../../core/firebase-sdk.js';
 import { handleError } from '../../core/error-handler.js';
 import { getDisplayName } from '../../utils/helpers.js';
+import { logPostCreated, logVoteOnPost, logCommentCreated } from '../../services/ActivityService.js';
 
 
 export async function createPost(content, imageData = null, videoEmbed = null, originalAuthorId = null) {
@@ -54,7 +55,14 @@ export async function createPost(content, imageData = null, videoEmbed = null, o
             }
         }
 
-        await addDoc(collection(db, 'feed'), postData);
+        const docRef = await addDoc(collection(db, 'feed'), postData);
+        
+        // Log activity
+        try {
+            await logPostCreated(docRef.id, postData);
+        } catch (logErr) {
+            console.warn('[Posts] Activity logging failed, but post created:', logErr);
+        }
         
         // Send repost notification if this is a repost
         if (originalAuthorId && originalAuthorId !== user.uid && typeof window.NotificationsUI !== 'undefined') {
@@ -100,6 +108,9 @@ export async function voteOnPost(feedId, voteType) {
         const existingVote = await getDoc(voteRef);
         const feedDoc = await getDoc(doc(db, 'feed', feedId));
 
+        // Track if this is a NEW vote (for activity logging)
+        const isNewVote = !existingVote.exists() || existingVote.data().type === null;
+
         if (existingVote.exists()) {
             const previousVote = existingVote.data().type;
             
@@ -120,6 +131,16 @@ export async function voteOnPost(feedId, voteType) {
             await setDoc(voteRef, { type: voteType });
             const change = voteType === 'up' ? 1 : -1;
             await updateDoc(doc(db, 'feed', feedId), { votes: increment(change) });
+        }
+        
+        // Log activity (only if new vote, not vote changes)
+        if (isNewVote) {
+            try {
+                const postData = feedDoc.data();
+                await logVoteOnPost(feedId, voteType, postData);
+            } catch (logErr) {
+                console.warn('[Posts] Activity logging failed, but vote recorded:', logErr);
+            }
         }
         
         // Send notification to post author
@@ -146,16 +167,24 @@ export async function addComment(postId, content) {
         const user = auth.currentUser;
         if (!user) return;
 
-        await addDoc(collection(db, 'feed', postId, 'comments'), {
+        const commentRef = await addDoc(collection(db, 'feed', postId, 'comments'), {
             content: content,
             authorId: user.uid,
             authorName: getDisplayName(user),
             createdAt: serverTimestamp()
         });
         
-        // Send notification to post author
+        // Log activity
         const feedDoc = await getDoc(doc(db, 'feed', postId));
         if (feedDoc.exists()) {
+            try {
+                const postData = feedDoc.data();
+                await logCommentCreated(commentRef.id, postId, content, postData);
+            } catch (logErr) {
+                console.warn('[Posts] Activity logging failed, but comment created:', logErr);
+            }
+            
+            // Send notification to post author
             const postAuthorId = feedDoc.data().authorId;
             if (postAuthorId !== user.uid && typeof window.NotificationsUI !== 'undefined') {
                 window.NotificationsUI.addNotification('post_votes_comments', {

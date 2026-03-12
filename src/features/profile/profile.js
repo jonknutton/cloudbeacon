@@ -1,7 +1,7 @@
 import { db, auth } from '../../../firebase.js';
-import { getProfile, updateBio, updateProfileCustomization } from '../../../auth.js';
-import { watchAuthState } from '../../../auth.js';
-import '../../../follows.js';
+import { getProfile, updateBio, updateProfileCustomization } from '../../core/auth.js';
+import { watchAuthState } from '../../core/auth.js';
+import './follows.js';
 import { collection, query, where, orderBy, getDocs, doc, getDoc } from '../../core/firebase-sdk.js';
 import { SKILLS_BY_CATEGORY } from '../../core/constants.js';
 import { handleError, getSafeElement, setElementText } from '../../core/error-handler.js';
@@ -185,11 +185,8 @@ async function loadProfile() {
         // Display user skills
         displayProfileSkills();
 
-        // Load work data early if owner (to populate work count)
-        if (isOwner) {
-            loadWork();
-        }
-
+        // Work tab loads lazily when user clicks on it (no early loading)
+        
         // Handle follow button visibility
         const followBtn = getSafeElement('followBtn');
         const messageBtn = getSafeElement('messageBtn');
@@ -288,9 +285,10 @@ function displayEmbeds(embeds) {
 }
 
 async function loadActivity() {
-    // Load activity: posts and all comments (VOTES go only to votes tab)
+    // Fast activity loading using denormalized activities collection
+    // This is O(k) instead of O(n²) - where k is user's activity count, n is total content
     try {
-        console.log('Loading activity for user:', uid);
+        console.log('[Profile] Loading activity for user:', uid);
         
         // Helper function - same as feed formatting
         function timeAgo(date) {
@@ -305,149 +303,116 @@ async function loadActivity() {
             return `${days}d`;
         }
 
-        // 1. Load posts authored by user (from feed)
-        const feedSnap = await getDocs(collection(db, 'feed'));
-        const posts = feedSnap.docs
-            .filter(d => d.data().authorId === uid)
-            .map(d => ({ 
-                id: d.id, 
-                ...d.data(), 
-                activityType: 'post',
-                source: 'feed'
-            }));
-        console.log('Posts found:', posts.length);
-
-        // 2. Load comments on feed posts authored by user
-        const feedComments = [];
-        for (const feedDoc of feedSnap.docs) {
-            const commentsSnap = await getDocs(collection(db, 'feed', feedDoc.id, 'comments'));
-            for (const commentDoc of commentsSnap.docs) {
-                const commentData = commentDoc.data();
-                if (commentData.authorId === uid) {
-                    feedComments.push({
-                        id: commentDoc.id,
-                        postId: feedDoc.id,
-                        postContent: feedDoc.data().content || feedDoc.data().title || 'Untitled',
-                        ...commentData,
-                        createdAt: commentData.createdAt,
-                        activityType: 'comment',
-                        source: 'feed-comment'
-                    });
-                }
-            }
-        }
-        console.log('Feed comments found:', feedComments.length);
-
-        // 3. Load project comments/chat authored by user
-        const projectComments = [];
-        const projectsQuery = await getDocs(collection(db, 'projects'));
+        // NEW: Load from activities collection (fast!)
+        const activitiesRef = collection(db, 'users', uid, 'activities');
+        const activitiesQuery = query(
+            activitiesRef,
+            orderBy('timestamp', 'desc')
+        );
         
-        for (const pDoc of projectsQuery.docs) {
-            const projectData = pDoc.data();
-            
-            // Get all chat messages in this project
-            const chatSnap = await getDocs(collection(db, 'projects', pDoc.id, 'chat'));
-            for (const chatDoc of chatSnap.docs) {
-                const chatData = chatDoc.data();
-                if (chatData.authorId === uid) {
-                    projectComments.push({
-                        id: chatDoc.id,
-                        projectId: pDoc.id,
-                        projectTitle: projectData.title,
-                        projectCategory: projectData.category,
-                        content: chatData.content,
-                        createdAt: chatData.createdAt,
-                        activityType: 'comment',
-                        source: 'project-chat'
-                    });
-                }
-            }
-        }
+        const activitiesSnap = await getDocs(activitiesQuery);
+        const activities = activitiesSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
         
-        console.log('Project comments found:', projectComments.length);
+        console.log('[Profile] Activities found:', activities.length);
 
-        // Combine all activities and sort by date (NO VOTES in activity feed)
-        const allActivities = [
-            ...posts,
-            ...feedComments,
-            ...projectComments
-        ].sort((a, b) => {
-            const timeA = a.createdAt?.seconds || 0;
-            const timeB = b.createdAt?.seconds || 0;
-            return timeB - timeA;
-        });
-
-        console.log('Total activities:', allActivities.length);
-
-        // Update stats - posts from feed only
-        document.getElementById('statPosts').textContent = posts.length;
+        // Update stats - count post_created activities
+        const postCount = activities.filter(a => a.type === 'post_created').length;
+        document.getElementById('statPosts').textContent = postCount;
 
         // Render activity
         const container = document.getElementById('profileActivity');
-        if (!allActivities.length) {
+        if (!activities.length) {
             container.innerHTML = '<p class="profile-empty">No activity yet.</p>';
             return;
         }
 
-        container.innerHTML = allActivities.map(item => {
-            const createdAtDate = item.createdAt ? new Date(item.createdAt.seconds * 1000) : null;
+        container.innerHTML = activities.map(item => {
+            const createdAtDate = item.timestamp ? new Date(item.timestamp.seconds * 1000) : null;
             const date = createdAtDate ? timeAgo(createdAtDate) : 'Unknown';
-            // Use current profile username if this is the viewed user's activity
-            const displayName = (item.authorId === uid && currentProfile) ? currentProfile.username : (item.authorName || 'Guest');
+            // Use current profile username
+            const displayName = (currentProfile) ? currentProfile.username : 'Guest';
             const initials = (displayName.split(' ').map(s=>s[0]).join('').slice(0,2)).toUpperCase();
-            const photoURL = (item.authorId === uid && currentProfile && currentProfile.photoURL) ? currentProfile.photoURL : item.photoURL || null;
+            const photoURL = (currentProfile && currentProfile.photoURL) ? currentProfile.photoURL : null;
             const avatarHtml = photoURL 
                 ? `<div class="avatar" style="background-image:url('${photoURL}'); background-size:cover;"></div>`
                 : `<div class="avatar">${initials}</div>`;
             
-            if (item.activityType === 'post') {
+            const metadata = item.metadata || {};
+            
+            if (item.type === 'post_created') {
                 return `
                     <div class="post" style="margin-bottom:16px;">
                         <div class="post-header">
                             ${avatarHtml}
                             <div class="post-meta">
-                                <div class="author"><a href="profile.html?uid=${item.authorId}">${displayName}</a></div>
+                                <div class="author"><a href="profile.html?uid=${uid}">${displayName}</a></div>
                                 <div class="time">${date}</div>
                             </div>
                         </div>
-                        <p style="margin:6px 0;">${item.content}</p>
+                        <p style="margin:6px 0; color: #555; font-style: italic;">📝 Created post: <strong>${metadata.contentTitle || 'Post'}</strong></p>
+                        ${metadata.summary ? `<p style="margin:6px 0; color: #666; font-size:13px;">${metadata.summary}</p>` : ''}
                     </div>`;
-            } else if (item.activityType === 'comment') {
-                if (item.source === 'feed-comment') {
-                    return `
-                        <div class="post" style="margin-bottom:16px;opacity:0.85;">
-                            <div class="post-header">
-                                ${avatarHtml}
-                                <div class="post-meta">
-                                    <div class="author"><a href="profile.html?uid=${item.authorId}">${displayName}</a> <span style="color:#999;font-size:12px;">commented</span></div>
-                                    <div class="time">${date}</div>
-                                </div>
+            } else if (item.type === 'voted_on_post') {
+                const voteEmoji = metadata.voteType === 'up' ? '👍' : '👎';
+                return `
+                    <div class="post" style="margin-bottom:16px;opacity:0.85;">
+                        <div class="post-header">
+                            ${avatarHtml}
+                            <div class="post-meta">
+                                <div class="author"><a href="profile.html?uid=${uid}">${displayName}</a> <span style="color:#999;font-size:12px;">voted ${metadata.voteType}</span></div>
+                                <div class="time">${date}</div>
                             </div>
-                            <p style="margin:6px 0;color:#666;font-size:13px;"><em>"${item.postContent.substring(0, 60)}${item.postContent.length > 60 ? '...' : ''}"</em></p>
-                            <p style="margin:6px 0;padding-left:12px;border-left:3px solid #ddd;">${item.content}</p>
-                        </div>`;
-                } else {
-                    // Project comment
-                    const catColors = { Physical: '#f59f00', Inventive: '#3b82f6', Community: '#ec4899', legislative: '#0ca678' };
-                    const color = catColors[item.projectCategory] || '#5c7cfa';
-                    return `
-                        <div class="post" style="margin-bottom:16px;opacity:0.85;">
-                            <div class="post-header">
-                                ${avatarHtml}
-                                <div class="post-meta">
-                                    <div class="author"><a href="profile.html?uid=${item.authorId}">${displayName}</a> <span style="color:#999;font-size:12px;">commented on</span> <a href="src/features/projects/projectpage/project.html?id=${item.projectId}" style="color:${color};">${item.projectTitle}</a></div>
-                                    <div class="time">${date}</div>
-                                </div>
+                        </div>
+                        <p style="margin:6px 0; color: #666; font-size:13px;">${voteEmoji} ${metadata.summary || 'Voted on post'}</p>
+                    </div>`;
+            } else if (item.type === 'comment_created') {
+                return `
+                    <div class="post" style="margin-bottom:16px;opacity:0.85;">
+                        <div class="post-header">
+                            ${avatarHtml}
+                            <div class="post-meta">
+                                <div class="author"><a href="profile.html?uid=${uid}">${displayName}</a> <span style="color:#999;font-size:12px;">commented</span></div>
+                                <div class="time">${date}</div>
                             </div>
-                            <p style="margin:6px 0;padding-left:12px;border-left:3px solid ${color};">${item.content}</p>
-                        </div>`;
-                }
+                        </div>
+                        <p style="margin:6px 0;color:#666;font-size:13px;"><em>"${metadata.parentPostTitle?.substring(0, 60)}${metadata.parentPostTitle?.length > 60 ? '...' : ''}"</em></p>
+                        <p style="margin:6px 0;padding-left:12px;border-left:3px solid #ddd;">${metadata.summary?.substring(0, 200) || 'Commented'}</p>
+                    </div>`;
+            } else if (item.type === 'project_created') {
+                return `
+                    <div class="post" style="margin-bottom:16px;">
+                        <div class="post-header">
+                            ${avatarHtml}
+                            <div class="post-meta">
+                                <div class="author"><a href="profile.html?uid=${uid}">${displayName}</a></div>
+                                <div class="time">${date}</div>
+                            </div>
+                        </div>
+                        <p style="margin:6px 0; color: #555; font-style: italic;">🚀 Created project: <strong>${metadata.contentTitle || 'Project'}</strong></p>
+                        ${metadata.category ? `<p style="margin:6px 0; color: #999; font-size:12px;">Category: ${metadata.category}</p>` : ''}
+                    </div>`;
+            } else if (item.type === 'voted_on_project') {
+                const voteEmoji = metadata.voteType === 'up' ? '👍' : '👎';
+                return `
+                    <div class="post" style="margin-bottom:16px;opacity:0.85;">
+                        <div class="post-header">
+                            ${avatarHtml}
+                            <div class="post-meta">
+                                <div class="author"><a href="profile.html?uid=${uid}">${displayName}</a> <span style="color:#999;font-size:12px;">voted ${metadata.voteType}</span></div>
+                                <div class="time">${date}</div>
+                            </div>
+                        </div>
+                        <p style="margin:6px 0; color: #666; font-size:13px;">${voteEmoji} Voted on project: <strong>${metadata.contentTitle || 'Project'}</strong></p>
+                    </div>`;
             }
             return '';
         }).join('');
 
     } catch (err) {
-        console.error('Error loading activity:', err);
+        console.error('[Profile] Error loading activity:', err);
         document.getElementById('profileActivity').innerHTML = '<p class="profile-empty">Error loading activity.</p>';
     }
 }
@@ -562,57 +527,43 @@ async function loadWork() {
     try {
         // Load user's bids from all projects
         const bids = [];
-        const currentUserEmail = auth.currentUser?.email;
         
-        console.log('loadWork() - Current user email:', currentUserEmail);
+        console.log('[Profile] Loading work (bids) from activities collection...');
         
-        const projectsQuery = await getDocs(collection(db, 'projects'));
-        console.log(`Found ${projectsQuery.docs.length} total projects`);
+        // Fast O(k) query instead of O(n*m*k) project scan
+        const activitiesSnap = await getDocs(
+            query(
+                collection(db, 'users', uid, 'activities'),
+                where('type', '==', 'bid_created'),
+                orderBy('timestamp', 'desc')
+            )
+        );
         
-        for (const pDoc of projectsQuery.docs) {
-            const projectId = pDoc.id;
-            const projectData = pDoc.data();
-            
-            console.log(`Checking project: ${projectId}`);
-            
-            // Get all tasks in the project
-            const tasksQuery = await getDocs(collection(db, 'projects', projectId, 'plan_tasks'));
-            console.log(`  -> Found ${tasksQuery.docs.length} tasks in this project`);
-            
-            for (const tDoc of tasksQuery.docs) {
-                const taskId = tDoc.id;
-                const taskData = tDoc.data();
+        console.log(`[Profile] Found ${activitiesSnap.docs.length} bid activities`);
+        
+        for (const actDoc of activitiesSnap.docs) {
+            try {
+                const activity = actDoc.data();
+                const metadata = activity.metadata || {};
                 
-                // Get bids for this task
-                const bidsQuery = await getDocs(collection(db, 'projects', projectId, 'plan_tasks', taskId, 'bids'));
-                
-                console.log(`    Task ${taskId} in project ${projectId} has ${bidsQuery.docs.length} bids`);
-                
-                for (const bDoc of bidsQuery.docs) {
-                    const bidData = bDoc.data();
-                    console.log(`      Bid ${bDoc.id} - bidderEmail: "${bidData.bidderEmail}" vs current: "${currentUserEmail}"`);
-                    
-                    // Check if this bid is from the current user (email match)
-                    if (bidData.bidderEmail === currentUserEmail) {
-                        console.log('      ✓ Bid matches current user, adding to results');
-                        bids.push({
-                            projectId: projectId,
-                            projectTitle: projectData.title,
-                            projectCategory: projectData.category,
-                            taskId: taskId,
-                            taskName: taskData.name || 'Unnamed Task',
-                            bidAmount: bidData.amount,
-                            bidderName: bidData.bidderName,
-                            bidDescription: bidData.notes || '',
-                            bidDate: bidData.createdAt || { seconds: Math.floor(Date.now() / 1000) },
-                            bidId: bDoc.id
-                        });
-                    }
-                }
+                bids.push({
+                    projectId: metadata.projectId,
+                    projectTitle: metadata.projectTitle,
+                    projectCategory: metadata.projectCategory,
+                    taskId: metadata.taskId,
+                    taskName: metadata.taskName,
+                    bidAmount: metadata.bidAmount,
+                    bidderName: metadata.bidderName,
+                    bidDescription: metadata.bidDescription || '',
+                    bidDate: activity.timestamp || { seconds: Math.floor(Date.now() / 1000) },
+                    bidId: activity.contentId
+                });
+            } catch (err) {
+                console.error('[Profile] Error processing bid activity:', err);
             }
         }
         
-        console.log('All bids found:', bids.length);
+        console.log(`[Profile] Loaded ${bids.length} bids`);
         
         // Sort by most recent
         bids.sort((a, b) => b.bidDate.seconds - a.bidDate.seconds);

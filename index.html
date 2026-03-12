@@ -19,8 +19,8 @@
 
         <!-- Floating top-left menu — hidden until logged in -->
         <div id="floatingMenu" style="display:none;">
-            <button id="menuBtn" onclick="toggleFloatingMenu()" style="display:flex; align-items:center; gap:8px; padding:0; border-radius:50%; width:55px; height:55px; background:none; border:0px solid #444; cursor:pointer; justify-content:center; position:relative;">
-                <div id="menuBtnAvatar" style="width:55px; height:55px; border-radius:50%; background:#666; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; font-weight:bold; flex-shrink:0;">U</div>
+            <button id="menuBtn" onclick="toggleFloatingMenu()" style="display:flex; align-items:center; gap:8px; padding:0; border-radius:50%; width:89px; height: 89px; background:none; border:0px solid #444; cursor:pointer; justify-content:center; position:relative;">
+                <div id="menuBtnAvatar" style="width:100%; height:100%; border-radius:50%; background:#666; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; font-weight:bold; flex-shrink:0;">U</div>
                 <span id="menuBtnNotificationBadge" style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:white; font-size:10px; font-weight:bold; border-radius:50%; width:22px; height:22px; display:none; align-items:center; justify-content:center; border:2px solid #1a1a1a;">0</span>
                 <span id="menuBtnUsername" style="color:#fff; font-size:13px; display:none; max-width:100px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\">User</span>
             </button>
@@ -32,6 +32,8 @@
                 <a class="menu-item" href="#" onclick="MessagingUI.openModal(); return false;">Messages <span id="messagesNotificationBadge" style="background:#ef4444; color:white; font-size:11px; font-weight:bold; border-radius:50%; width:20px; height:20px; display:none; align-items:center; justify-content:center; margin-left:auto;">0</span></a>
                 <a class="menu-item" href="#" onclick="if(typeof NotificationsUI !== 'undefined') NotificationsUI.openModal(); return false;">Notifications <span id="notificationsNotificationBadge" style="background:#ef4444; color:white; font-size:11px; font-weight:bold; border-radius:50%; width:20px; height:20px; display:none; align-items:center; justify-content:center; margin-left:auto;">0</span></a>
                 <a class="menu-item" href="src/features/search/search.html">Search</a>
+                <a class="menu-item" href="EM/index.html">Quakes</a>
+                <a class="menu-item" href="src/features/governance/governance.html">Governance</a>
                 
                 <!-- Support Section -->
                 <div class="menu-divider"></div>
@@ -145,7 +147,7 @@
             <!-- Bug Report Modal -->
             <div id="bugReportModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; overflow:auto;" onclick="if(event.target.id === 'bugReportModal') closeBugReportModal();">
                 <div style="background:white; margin:40px auto; padding:30px; border-radius:10px; max-width:500px; max-height:80vh; overflow:auto;">
-                    <h2 style="margin-top:0; text-align:center;">🐛 Report a Bug</h2>
+                    <h2 style="margin-top:0; text-align:center;">Report an issue</h2>
                     <p style="text-align:center; color:#666; font-size:14px;">Help us improve by reporting the issue you encountered</p>
                     
                     <textarea id="bugDescription" placeholder="Describe the bug you found..." style="width:100%; height:150px; padding:12px; border:1px solid #ccc; border-radius:6px; font-family:Arial, sans-serif; font-size:14px; box-sizing:border-box; resize:vertical; margin:16px 0;"></textarea>
@@ -182,8 +184,8 @@
                                 </div>
                             </div>
                         </div>
-                        <input type="text" id="feedSearchInput" placeholder="Search posts..." style="flex-grow:1; margin-left:5px; padding:8px 5px; border:1px solid #444; border-radius:6px; background:#333333; color:#fff; font-size:14px;" onkeyup="searchFeedCount()" onkeydown="if(event.key==='Enter') searchFeedFiltered();">
-                        <button id="feedSearchBtn" onclick="searchFeedFiltered()" style="padding:8px 16px; border:1px solid #333333; border-radius:6px; background:#333333; color:#fff; font-size:14px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; margin-left:5px;">Search</button>
+                        <input type="text" id="feedSearchInput" placeholder="Search posts..." style="flex-grow:1; margin-left:5px; padding:8px 5px; border:1px solid #444; border-radius:6px; background:#333333; color:#fff; font-size:25px;" onkeyup="searchFeedCount()" onkeydown="if(event.key==='Enter') searchFeedFiltered();">
+                        <button id="feedSearchBtn" onclick="searchFeedFiltered()" style="padding:8px 16px; border:1px solid #333333; border-radius:6px; background:#333333; color:#fff; font-size:25px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; margin-left:5px;">Search</button>
                     </div>
                 </div>
 
@@ -208,13 +210,13 @@
                             <div class="media-upload">
                                 <label class="media-upload-label">
                                     <input type="file" id="postImage" accept="image/*" style="display:none;" onchange="handlePostImageSelect(event)">
-                                    <span>📷 Upload Image</span>
+                                    <span>Upload Image</span>
                                 </label>
                                 <span id="postImageName" class="media-filename"></span>
                             </div>
                             
                             <div class="media-embed">
-                                <label for="postVideoEmbed" class="media-label">🎬 Video Embed URL</label>
+                                <label for="postVideoEmbed" class="media-label">Video Embed URL</label>
                                 <input type="text" id="postVideoEmbed" class="modal-input" placeholder="e.g., https://www.youtube.com/watch?v=...">
                             </div>
                         </div>
@@ -229,17 +231,17 @@
 
                         <select id="projectCategory" class="modal-select">
                             <option value="">Select a category...</option>
-                            <option value="Tech">💻 Tech — software, hardware, open source</option>
-                            <option value="Civil">🏗️ Civil — construction, infrastructure, buildings</option>
-                            <option value="Community">🤝 Community — campaigns, fundraising, people</option>
-                            <option value="Law">⚖️ Law — policy, legislation, legal reform</option>
+                            <option value="Tech">Tech — software, hardware, open source</option>
+                            <option value="Civil">Civil — construction, infrastructure, buildings</option>
+                            <option value="Community">Community — campaigns, fundraising, people</option>
+                            <option value="Law">Law — policy, legislation, legal reform</option>
                         </select>
 
                         <textarea id="projectOverview" class="modal-input" placeholder="Project overview" style="min-height:80px; resize:vertical;"></textarea>
 
                         <div style="margin-bottom:12px;">
                             <button type="button" class="modal-input" style="background:#f0f0f0; border:1px solid #ddd; padding:8px; text-align:left; cursor:pointer;" onclick="document.getElementById('projectHeaderImage').click()">
-                                📷 Upload Header Image
+                                Upload Header Image
                             </button>
                             <input type="file" id="projectHeaderImage" accept="image/*" style="display:none;" onchange="handleProjectImageSelect(event)">
                             <span id="projectImageName" class="media-filename" style="font-size:12px; color:#666; display:block; margin-top:4px;"></span>
@@ -415,23 +417,23 @@
         <script src="src/utils/sharing.js"></script>
         <script src="src/services/messaging.js"></script>
         <script src="src/services/messagingUI.js"></script>
-        <script src="notifications.js"></script>
+        <script src="src/services/notifications.js"></script>
         <script src="src/ui/loginHeckles.js"></script>
 
         <script type="module" src="firebase.js"></script>
-        <script type="module" src="auth.js"></script>
+        <script type="module" src="src/core/auth.js"></script>
         <script type="module" src="src/features/voting/posts.js"></script>
-        <script type="module" src="app.js"></script>
-        <script type="module" src="search.js"></script>
+        <script type="module" src="src/core/app.js"></script>
+        <script type="module" src="src/features/search/search.js"></script>
         
         <script src="src/features/settings/settings.js"></script>
-        <script src="votingEligibility.js"></script>
+        <script src="src/features/voting/votingEligibility.js"></script>
         
         <script type="module">
             // Simple debug: log bills to console on load
             setTimeout(async () => {
                 try {
-                    const { db } = await import('./firebase.js');
+                    const { db } = await import('firebase.js');
                     const { collection, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
                     
                     const snap = await getDocs(
