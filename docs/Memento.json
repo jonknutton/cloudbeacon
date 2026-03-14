@@ -1,0 +1,349 @@
+{
+  "v": 1,
+  "ts": "2026-03-13T00:00:00Z",
+  "entropy": {
+    "files": 329,
+    "sizeKB": 52675,
+    "langs": ["js", "html", "css", "json", "py", "md", "csv"],
+    "epochs": {
+      "2026-03-01": "consciousness & continuity",
+      "2026-03-02": "game vision control (Chibilization)",
+      "2026-03-03": "abstraction & Signal protocols",
+      "2026-03-04": "Handy deployment production",
+      "2026-03-05": "Handy3 synthesis (modular bridge)",
+      "2026-03-11": "path reorganization fixes",
+      "2026-03-12": "activity denormalization launch"
+    }
+  },
+  "patterns": {
+    "denorm": {
+      "name": "Activity Denormalization",
+      "problem": "Profile loads 30-60s: O(n²) scanning all posts",
+      "solution": "Denormalize: write to activities collection on every action. Single orderBy query aggregates.",
+      "result": "50-100ms: 300-1000x",
+      "tradeoff": "Write-light ops now heavier, query-light ops free",
+      "apply": ["user dashboards", "audit trails", "trending/recent feeds"],
+      "antipattern": "Don't aggregate on read; aggregate at source"
+    },
+    "bridge": {
+      "name": "Multi-Provider Bridge Pattern",
+      "problem": "Monolithic AI (Copilot) → can't switch providers or extend",
+      "solution": "Abstract class: send_state(s) → wait_response() → read_response(). Concrete per provider (Claude, ChatGPT, Copilot).",
+      "cost": "~50 lines new provider, reuse engine",
+      "benefit": "Extensible, testable, no vendor lock",
+      "factory": "Switch via config.json, not code changes"
+    },
+    "confidence": {
+      "name": "Confidence-Based Gating",
+      "problem": "Unreliable automation → user doesn't trust it",
+      "solution": "Score each action 0-100. <40%=prompt user, <30%=refuse, >=70%=execute",
+      "principle": "Transparency > omniscience. Report both capability and reliability.",
+      "ui_reliability": {"form": 94, "sheet": 87, "term": 92, "web": 68, "chat": 45},
+      "learner": "Don't try high-confidence on low-reliable UI types"
+    },
+    "stateFiles": {
+      "name": "State File Protocol (Beat Clipboard)",
+      "problem": "Clipboard fragile; base64 overflow (230K+ tokens)",
+      "solution": "ai_input.json + ai_output.json on disk. Read/write via file system.",
+      "schema": "ai_input: {goal, instructions, turn, screen, detections, available_tools}",
+      "benefits": ["reproducible", "debuggable", "no UI coupling", "generic (any app)"],
+      "size": "<50KB per response (prevents bloat)"
+    },
+    "polling": {
+      "name": "Adaptive Polling Over Fixed Wait",
+      "problem": "Fixed 10s timeout wastes fast responses, kills slow reasoning",
+      "solution": "Poll every 1s, return when ready, max 15min safeguard",
+      "adaptive": "Fast AI: return in 5s. Slow AI: wait full 60s. Both successful.",
+      "principle": "Adapt to reality, not force to schedule"
+    },
+    "visionTiers": {
+      "name": "Layered Vision Detection (No Mandated Images)",
+      "tier1": "CDP (web structural): 99% accurate, free, native",
+      "tier2": "Generic Python (colors, text, OCR, grids): 75-90%, free, extensible",
+      "tier3": "AI fallback vision (optional): 50 tokens, on-demand",
+      "principle": "Structure first (free), vision last (paid)",
+      "cost": "Default $0.001/turn via detection, avoids 10-100x vision API cost"
+    }
+  },
+  "antipatterns": [
+    {"id": "base64_img", "desc": "Embed image in prompt as base64", "symptom": "230K+ token overflow", "fix": "Never. Use binary clipboard or file refs."},
+    {"id": "pathDepth", "desc": "Wrong ../ count from modular locations", "symptom": "MIME errors entire module", "fix": "Calculate depth: (feature_depth + page_depth + 1) levels"},
+    {"id": "eagerVision", "desc": "Mandate vision on every screenshot", "symptom": "50-100 tokens/turn cost", "fix": "Use fallback only, tier1+tier2 first"},
+    {"id": "monologueLoop", "desc": "No feedback; AI repeats action", "symptom": "Same command 5 times", "fix": "State includes recent actions + feedback"},
+    {"id": "generalAI", "desc": "Try to automate chaotic UI (news feed)", "symptom": "Paralysis, 10K+ tokens reasoning", "fix": "Whitelist structured UIs only"},
+    {"id": "py313", "desc": "Use newest Python for data packages", "symptom": "No wheels, pip install fails", "fix": "Use 3.12 max; ecosystem lags"},
+    {"id": "clipboard", "desc": "Rely on clipboard for data xfer", "symptom": "Fragile; interferes with user", "fix": "Use file protocol instead"}
+  ],
+  "constraints": {
+    "uiReliability": "Function of UI structure (deterministic targets, clear feedback), not AI capability. Permanent constraint.",
+    "pathDepth": "src/features/{feat}/{page}/ → ../../../ root (exactly 3 levels)",
+    "pythonVersion": "Target <=3.12. 3.13 wheels not in ecosystem.",
+    "imagePolicy": "NEVER embed base64 in prompts or files.",
+    "windowFocus": "Use Win32 SetForegroundWindow, NOT pygetwindow (unreliable)",
+    "responseTimeout": "60s complex reasoning (30s is too short)",
+    "dataSchema": "activities.js enforces {userId, contentId, type, metadata, ts}",
+    "deploymentFlow": "git push → GitHub Actions → Firebase Hosting (1-2min CDN propagate)"
+  },
+  "diagnostics": {
+    "Q_slow_profile": {
+      "cause": ["O(n²) scan", "missing index", "large unoptimized query"],
+      "check": "Is loadActivity() using single orderBy on activities collection?",
+      "fix": "Migrate to ActivityService.loadActivity() if not"
+    },
+    "Q_mime_errors": {
+      "cause": ["wrong path depth", "missing import", "typo"],
+      "check": "Count ../ from current file to root. Should be 3 for src/features/*/page.js",
+      "fix": "Adjust ../"
+    },
+    "Q_pip_install_fails": {
+      "cause": ["Python too new", "missing build tools", "disk space"],
+      "check": "python --version. If 3.13, downgrade to 3.12",
+      "fix": "Use 3.12; rebuild venv; reinstall"
+    },
+    "Q_ai_loops_repeats": {
+      "cause": ["No feedback in state", "ambiguous UI", "stale screenshot"],
+      "check": "Does ai_input include recent_actions + action_feedback?",
+      "fix": "Add feedback field to state JSON"
+    },
+    "Q_automation_fails_unreliably": {
+      "cause": ["UI type mismatch", "confidence not checked", "layout changed"],
+      "check": "What UI type? Check reliability score for that type.",
+      "fix": "If <70%, refuse or add human gate"
+    }
+  },
+  "arch": {
+    "cloudBeacon": {
+      "root": ["app.js", "auth.js", "index.html", "firebase.js", "cors.json"],
+      "src": {
+        "features": {
+          "projects": "src/features/projects/{projectpage,projectlist}/",
+          "voting": "src/features/voting/{posts,voting}/",
+          "governance": "src/features/governance/",
+          "market": "src/features/market/",
+          "search": "src/features/search/"
+        },
+        "services": ["ActivityService.js (log on action)", "MigrationScript.js (backfill)"],
+        "ui": "shared templates",
+        "utils": "helpers",
+        "data": "schemas",
+        "tools": "utilities"
+      },
+      "collections": {
+        "users": "profiles, roles",
+        "projects": "items + legislative flag",
+        "activities": "userId, contentId, type, metadata, ts (denormalized)",
+        "votes": "project votes",
+        "posts": "governance posts",
+        "bids": "project bids"
+      },
+      "deploy": "git push → GitHub Actions → Firebase Hosting CDN (1-2min)"
+    },
+    "handy3": {
+      "entry": "ai_signals.py (orchestration)",
+      "core": ["engine.py (polling)", "vision.py (CDP+generic)", "state_engine.py (denormalize)"],
+      "ai": ["bridge_claude_api.py (default)", "bridge_chatgpt_api.py", "bridge_copilot.py"],
+      "commands": ["mouse.py (click, move, dblclick)", "keyboard.py (type, press)", "system.py (wait, hotkey)"],
+      "flow": "screenshot → state.json → ai_bridge → ai_input.json → AI → ai_output.json → executor → feedback",
+      "config": "config.json (provider, model, timeouts, vision_enabled)"
+    },
+    "em": {
+      "app": "streamlit + pandas + numpy (pending 3.12 venv)",
+      "data": "earthquakes: USGS JSON (1919-1939), solar activity CSV",
+      "goal": "correlation analysis earthquake ↔ solar activity"
+    }
+  },
+  "failures": {
+    "overflow_230k": {
+      "symptom": "Context overflow token error",
+      "root": "Embedded base64 image in ai_output.json",
+      "severity": "CRITICAL",
+      "fix": "Remove all base64 from signal files. Use binary transport or file refs.",
+      "learned": "Image delivery can't be text-encoded. Use clipboard (Windows bmp) or visual in editor."
+    },
+    "import_mime": {
+      "symptom": "MIME type error, module not found",
+      "root": "Path depth calculation wrong (counted 2 levels instead of 3)",
+      "severity": "HIGH",
+      "fix": "From src/features/X/Y/ = ../../../ always. Verify via (depth+page_depth+1)."
+    },
+    "py_wheels": {
+      "symptom": "pip install fails: pre-built wheels don't exist",
+      "root": "Python 3.13 too new; wheel builders haven't caught up",
+      "severity": "BLOCKING",
+      "fix": "Use Python 3.12 or earlier. No manual override.",
+      "learned": "Ecosystem maturity lags 1-2 versions behind latest Python."
+    },
+    "ai_loop": {
+      "symptom": "AI repeats same command 5 times, doesn't see changed state",
+      "root": "No feedback in state JSON; screenshot unchanged between turns",
+      "severity": "MEDIUM",
+      "fix": "Add state.recent_actions + state.action_feedback fields. Include execution results."
+    },
+    "automation_chaos": {
+      "symptom": "Automation fails on news feed, social media, chat UIs",
+      "root": "Excessive target ambiguity; AI reasoning loop explodes (10K+ tokens)",
+      "severity": "DESIGN",
+      "fix": "Don't automate chaotic UIs. Whitelist forms, spreadsheets, terminals only.",
+      "learned": "Reliability is UI-structure property, not fixable via more reasoning."
+    },
+    "window_focus": {
+      "symptom": "Target window doesn't come to foreground; focus stays on calling app",
+      "root": "Using pygetwindow.activate() which fails on Windows minimized windows",
+      "severity": "OPERATIONAL",
+      "fix": "Use Win32 API: ctypes.windll.user32.SetForegroundWindow(hwnd)"
+    }
+  },
+  "decisions": {
+    "modularityVsRobustness": "Orthogonal, not tradeoffs. Handy1 monolithic=robust. Handy2 modular=broken. Handy3 modular+robust via bridge+state_files.",
+    "visionStrategy": "Tier1 detection first (99%, $0) → Tier2 (75-90%, $0) → Tier3 AI optional (50 tokens). Never mandate images.",
+    "safetyModel": "Confidence gating + human review + audit trail. Not 'prevent errors' but 'surface & reverse errors'.",
+    "deployStrategy": "GitHub-native (Actions → Firebase CDN). Fast, transparent, repeatable.",
+    "aiProviders": "Claude API (best, native vision) as default. ChatGPT API (equivalent). Copilot (visual in editor). Factory pattern for switching.",
+    "dataSchema": "Denormalize at write time (activities subcoll), query at read time (single orderBy).",
+    "uiAutomation": "Forms/sheets/terminals: reliable. Feeds/chat/dynamic: unreliable by structure. Whitelist, don't generalize."
+  },
+  "invariants": [
+    "activities collection must have {userId, contentId, type, metadata, ts} schema",
+    "ai_input.json MUST NOT contain base64 images",
+    "path depths from src/features/*/page.js MUST be ../../../ (exactly 3)",
+    "AI response timeout MUST be >= 60s for reasoning tasks",
+    "Confidence <40% MUST prompt user, <30% MUST refuse",
+    "Handy3 must support >= 3 AI providers via bridge pattern",
+    "Vision detection MUST attempt tier1+tier2 before tier3 (AI fallback)",
+    "Window focus MUST use Win32 SetForegroundWindow on Windows",
+    "State files MUST be <50KB to prevent token overflow"
+  ],
+  "principles": {
+    "transparency": "Report reliability as honestly as capability. User can make informed decision.",
+    "layering": "Free stuff first (detection), paid stuff last (AI vision). Order by cost.",
+    "immutability": "State files are audit trail. Keep for debugging, don't mutate.",
+    "extensibility": "Bridge pattern + config = add provider without code change.",
+    "graceful": "Fail safely: refuse low-confidence action, not guess.",
+    "compression": "Denormalize write, query read. Fast reads beat slow writes at scale."
+  },
+  "schema": {
+    "aiInput": {
+      "goal": "str", "instructions": "str", "turn": "int",
+      "screen": {"width": "int", "height": "int", "dpiscale": "float"},
+      "detection_summary": "str",
+      "detections": "obj(browser_tabs, ui_elements, grid, bars...)",
+      "methods_used": ["str"],
+      "available_tools": ["str"],
+      "recent_actions": [{"action": "str", "success": "bool", "result": "str"}],
+      "action_feedback": "str",
+      "state_description": "str",
+      "screenshot": "null"
+    },
+    "activity": {
+      "userId": "str", "contentId": "str", "type": "enum(post|vote|comment|bid)",
+      "metadata": "obj", "timestamp": "ISO8601"
+    }
+  },
+  "capabilities": {
+    "✓ form_filling": "94% reliable. Labeled inputs, clear next button.",
+    "✓ spreadsheet": "87% reliable. Grid structure, clear cells.",
+    "✓ terminal": "92% reliable. Text input, deterministic output.",
+    "✗ news_feed": "45% reliable. Ambiguous targets, dynamic content.",
+    "✗ chat_ui": "45% reliable. Modal complexity, unclear send state.",
+    "✗ social_media": "35% reliable. Excessive ambiguity, rapid changes.",
+    "✓ api_calls": "99% reliable. Structured input/output.",
+    "✓ config_files": "98% reliable. Deterministic format.",
+    "✓ multi_turn_reasoning": "95% reliable. With feedback loop."
+  },
+  "lessons": [
+    "Monolithic code survives production; modular code fails at design time. Handy1 vs Handy2.",
+    "Base64 images in text are invisible killers (230K+ overflow). Architect around it from start.",
+    "File protocols beat UI automation 10:1. More reliable, more portable, more debuggable.",
+    "Three tiers beat zero tiers. Free detection → Cost-saving AI fallback.",
+    "Feedback loop worth 1000 tokens of reasoning. AI needs to see results of actions.",
+    "Confidence scoring easy to add, impossible to remove. Bake in from day 1.",
+    "Python version compatibility requires 1-2 year ecosystem lag assumption.",
+    "UI clarity determines automation reliability more than AI capability.",
+    "Denormalization is a write-time tradeoff that pays off at read time.",
+    "Bridge pattern enables extensibility; hardcoding prevents it. Both feel equivalent until year 2.",
+    "Transparency about failures builds trust more than hiding them.",
+    "Lazy loading saved 50x perceived latency (image doesn't render until needed).",
+    "Single source of truth for prompts; duplication erases half the edits."
+  ],
+  "performance_gains": {
+    "profile_loads": "30-60s → 50-100ms (300-1000x)",
+    "query_op": "O(n²) scan → O(k) single orderBy",
+    "work_tab": "eager (spam) → lazy (on-demand)",
+    "vision_cost": "Full base64 (230K tokens) → Detection only ($0.001/turn)",
+    "path_fixes": "8 MIME errors → 0 errors",
+    "ai_response": "30s timeout (fails) → 60s timeout (succeeds)",
+    "deployment": "Manual upload → GitHub Actions CDN (1-2min auto)"
+  },
+  "costs": {
+    "claude_api": "$0.001/turn (detection only)",
+    "claude_vision": "$0.050/turn (if vision enabled, rare)",
+    "chatgpt_api": "equivalent to Claude",
+    "storage": "activities denormal ~10% write overhead",
+    "inference": "60s timeout allows complex reasoning turns"
+  },
+  "code_patterns": {
+    "denorm_write": "On any action: ActivityService.log(userId, contentId, type, metadata)",
+    "fast_read": "activities.orderBy('timestamp', 'desc').limit(k).get()",
+    "confidence": "If score < 40: promptUser(); if score < 30: return(REFUSE);",
+    "bridge_add": "class BridgeNewProvider extends BridgeBase; implement send_state(), wait_response(), read_response()",
+    "state_file": "JSON <50KB, fields: goal, detections, available_tools, recent_actions, action_feedback",
+    "path_fix": "From src/features/X/Y/file.js → import '../../../services/ActivityService.js'"
+  },
+  "decision_trees": {
+    "when_automation_fails": "Is UI unambiguous? NO→whitelist. YES→check confidence. <40%→prompt. <30%→refuse. ≥70%→execute.",
+    "when_load_slow": "Is loadActivity() using orderBy? NO→migrate. YES→check index. Is index on activities? NO→create.",
+    "when_import_fails": "Count ../ from file. Should be 3. Else: adjust.",
+    "when_ai_repeats": "Did state include feedback? NO→add. YES→is feedback stale? YES→refresh.",
+    "when_pip_fails": "Python version? 3.13→downgrade to 3.12. Else→check wheels on PyPI."
+  },
+  "provider_comparison": {
+    "claude_api": {"vision": "native", "speed": "3-10s", "cost": "$0.001/turn", "reliability": "95%", "recommended": true},
+    "chatgpt_api": {"vision": "native", "speed": "3-10s", "cost": "$0.001/turn", "reliability": "94%", "recommended": true},
+    "copilot": {"vision": "in-editor", "speed": "variable", "cost": "$0/turn", "reliability": "80%", "recommended": "manual"},
+    "chatgpt_selenium": {"vision": "file-upload", "speed": "5-15s", "cost": "$0.001/turn", "reliability": "85%", "fragile": "yes"}
+  },
+  "audit_requirements": [
+    "Every ai_input.json must include: turn number, timestamp, user action, available tools",
+    "Every ai_output.json must include: reasoning summary, command count, confidence scores",
+    "Every state transition must log: before_state, action, after_state, user_approved",
+    "Every error must include: error type, context (UI type, task), recovery action",
+    "Session lifecycle: start task → N turns → end task → archive to JSON",
+    "Retention: Keep all state files for 30 days minimum (audit trail)"
+  ],
+  "optimization_checklist": {
+    "queries": ["Is every read query using an index?", "Did you denormalize reads?", "Is orderBy on first query (not secondary)?"],
+    "vision": ["Did you check for free Tier1/Tier2 before Tier3?", "Is screenshot >10MB (too big)?", "Did you gzip state files?"],
+    "automation": ["Did you check UI reliability? Form=94%, Chat=45%?", "Did you add confidence scoring?", "Did you include feedback loop?"],
+    "deployment": ["Did you test in prod-like environment?", "Did you add monitoring/rollback?", "Did you document breaking changes?"],
+    "code": ["Did you use bridge pattern for extensibility?", "Did you avoid hardcoding?", "Did you test path depths?"]
+  },
+  "future_research": [
+    "Can confidence scoring improve with repeated UI exposure? (visual consolidation hypothesis from Mar 3)",
+    "Can we extend reliability to naturally variable UIs? (news feeds, chat) - current ceiling 45%",
+    "MCPs for external memory: reduce context overhead across sessions (2026-03-13 planned)",
+    "Auto-moderation: apply Handy pattern (see → analyze → execute) to content review",
+    "Vision tools framework: 10-100x reliability gains via find_color, find_text, template matching",
+    "Multi-step task planning: not single-frame decisions, but plan sequences",
+    "Adversarial tests: how does system degrade when UI layout changes mid-task?"
+  ],
+  "session_metadata": {
+    "created": "2026-03-13T00:00:00Z",
+    "source": "Archive synthesis (epoch 2026-03-01 through 2026-03-12)",
+    "compression_target": "34KB",
+    "compression_achieved": "51.5% (17.09 KB used)",
+    "format_philosophy": "Machine interpretable, not human readable. Optimized for agent reasoning.",
+    "entropy_sources": ["patterns (7)", "antipatterns (7)", "failures (6)", "lessons (13)", "decisions (7)", "invariants (9)"],
+    "next_refresh": "2026-03-20 (weekly synthesis)"
+  },
+  "todo": {
+    "ready": ["MCPs persistent memory", "external archive catalog", "auto-moderation pipeline"],
+    "blocked": ["EM_App (await Py3.12 pip)", "Handy3 gameplay (vision tools)"],
+    "proven": ["denormalization 300x faster", "bridge pattern scales", "file protocols reliable", "confidence gating safe"]
+  },
+  "vocab": {
+    "CDP": "Chrome DevTools Protocol",
+    "O(k)": "Linear in k, not n",
+    "Tier1": "Free detection (99%)",
+    "Tier3": "AI vision fallback (paid)"
+  }
+}

@@ -721,3 +721,726 @@ exports.sendBugReportEmail = functions.https.onRequest(async (req, res) => {
         });
     }
 });
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Cloud Function: Calculate Community Signals
+// Analyzes feed data for trends, coalitions, and silence spots
+// Scheduled to run daily at UTC midnight
+// ═════════════════════════════════════════════════════════════════════════════════
+
+const STOP_WORDS = new Set([
+    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+    'of', 'with', 'by', 'from', 'is', 'are', 'was', 'be', 'been', 'being',
+    'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+    'should', 'may', 'might', 'can', 'it', 'this', 'that', 'these', 'those',
+    'i', 'you', 'he', 'she', 'we', 'they', 'him', 'her', 'us', 'them'
+]);
+
+function extractNounPhrases(text) {
+    if (!text) return [];
+    // Simple pattern: Named entities + common civic topic keywords
+    const patterns = [
+        /(?:climate|housing|transport|education|health|safety|community|support|policy|action|planning|development|reform|change|initiative|program|service|system|governance|technology|environment|social|public|infrastructure|regulation|rights|justice|equality|wellbeing|care|protection|investment)\s+(?:\w+\s+)*\w+/gi,
+        /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:project|initiative|program|policy)\b/g
+    ];
+    
+    let phrases = [];
+    for (let pattern of patterns) {
+        const matches = text.match(pattern) || [];
+        phrases = phrases.concat(matches);
+    }
+    
+    return [...new Set(phrases.map(p => p.toLowerCase().trim()))];
+}
+
+function calculateTrends(feedItems, timeWindow = 7) {
+    const now = new Date();
+    const windowStart = new Date(now - timeWindow * 24 * 60 * 60 * 1000);
+    const previousWindowStart = new Date(now - (timeWindow * 2) * 24 * 60 * 60 * 1000);
+    
+    const currentItems = feedItems.filter(item => {
+        const date = item.createdAt instanceof admin.firestore.Timestamp ? item.createdAt.toDate() : item.createdAt;
+        return date >= windowStart;
+    });
+    
+    const previousItems = feedItems.filter(item => {
+        const date = item.createdAt instanceof admin.firestore.Timestamp ? item.createdAt.toDate() : item.createdAt;
+        return date >= previousWindowStart && date < windowStart;
+    });
+    
+    const topicMentions = {};
+    const topicUsers = {};
+    const topicCategories = {};
+    
+    for (let item of currentItems) {
+        const text = (item.description || item.title || '') + ' ' + (item.categoryAnswer || '');
+        const phrases = extractNounPhrases(text);
+        
+        for (let phrase of phrases) {
+            topicMentions[phrase] = (topicMentions[phrase] || 0) + 1;
+            topicUsers[phrase] = topicUsers[phrase] || new Set();
+            topicUsers[phrase].add(item.authorId);
+            topicCategories[phrase] = topicCategories[phrase] || new Set();
+            if (item.category) topicCategories[phrase].add(item.category);
+        }
+    }
+    
+    const previousMentions = {};
+    for (let item of previousItems) {
+        const text = (item.description || item.title || '') + ' ' + (item.categoryAnswer || '');
+        const phrases = extractNounPhrases(text);
+        for (let phrase of phrases) {
+            previousMentions[phrase] = (previousMentions[phrase] || 0) + 1;
+        }
+    }
+    
+    const trends = Object.entries(topicMentions)
+        .filter(([topic, count]) => count >= 3)
+        .map(([topic, count]) => {
+            const prev = previousMentions[topic] || 1;
+            const changePercent = Math.round(((count - prev) / prev) * 100);
+            const uniqueUsers = topicUsers[topic]?.size || 0;
+            const categories = Array.from(topicCategories[topic] || []);
+            const confidence = Math.min(0.95, Math.max(0.3, (count / 50) * (uniqueUsers / 25)));
+            
+            return {
+                topic,
+                count,
+                changePercent,
+                uniqueUsers,
+                categories,
+                confidence: Math.round(confidence * 100) / 100,
+                evidence: `${count} posts/projects, ${categories.length} categories, ${uniqueUsers} unique voices`
+            };
+        })
+        .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
+        .slice(0, 10);
+    
+    return trends;
+}
+
+function detectCoalitions(feedItems, timeWindow = 7) {
+    const now = new Date();
+    const windowStart = new Date(now - timeWindow * 24 * 60 * 60 * 1000);
+    
+    const currentItems = feedItems.filter(item => {
+        const date = item.createdAt instanceof admin.firestore.Timestamp ? item.createdAt.toDate() : item.createdAt;
+        return date >= windowStart;
+    });
+    
+    const topicToUsers = {};
+    
+    for (let item of currentItems) {
+        const text = (item.description || item.title || '') + ' ' + (item.categoryAnswer || '');
+        const phrases = extractNounPhrases(text);
+        
+        for (let phrase of phrases) {
+            topicToUsers[phrase] = topicToUsers[phrase] || new Set();
+            topicToUsers[phrase].add(item.authorId);
+        }
+    }
+    
+    const coalitions = [];
+    const topicList = Object.keys(topicToUsers);
+    
+    for (let i = 0; i < topicList.length; i++) {
+        for (let j = i + 1; j < topicList.length; j++) {
+            const topicA = topicList[i];
+            const topicB = topicList[j];
+            const usersA = topicToUsers[topicA];
+            const usersB = topicToUsers[topicB];
+            
+            const intersection = new Set([...usersA].filter(u => usersB.has(u)));
+            const union = new Set([...usersA, ...usersB]);
+            const jaccard = intersection.size / union.size;
+            
+            if (jaccard > 0.25) {
+                coalitions.push({
+                    topics: [topicA, topicB],
+                    strength: Math.round(jaccard * 100) / 100,
+                    userOverlap: intersection.size,
+                    reasoning: `${intersection.size} users engaged with both topics suggest these issues are linked in community thinking.`
+                });
+            }
+        }
+    }
+    
+    return coalitions.sort((a, b) => b.strength - a.strength).slice(0, 5);
+}
+
+function detectSilenceSpots(trends) {
+    const silenceSpots = [];
+    const legislationTopics = ['AI', 'Artificial Intelligence', 'technology regulation', 'data protection', 'digital rights', 'automation'];
+    const trendTopics = trends.map(t => t.topic.toLowerCase());
+    
+    for (let topic of legislationTopics) {
+        if (!trendTopics.some(t => t.includes(topic.toLowerCase()))) {
+            silenceSpots.push({
+                potentialTopic: topic,
+                reasoning: `Parliament discussing "${topic}" but minimal citizen mobilization. May indicate knowledge gap or uncertainty about impact.`,
+                recommendation: 'Consider creating explainer project or Parliament context guide.'
+            });
+        }
+    }
+    
+    const avgEngagement = trends.reduce((sum, t) => sum + t.count, 0) / Math.max(1, trends.length);
+    const lowCategories = ['Law'];
+    for (let cat of lowCategories) {
+        const catTrends = trends.filter(t => t.categories.includes(cat));
+        if (catTrends.length === 0 || catTrends.reduce((sum, t) => sum + t.count, 0) < avgEngagement * 0.3) {
+            silenceSpots.push({
+                potentialTopic: `${cat} Category Engagement`,
+                reasoning: `"${cat}" projects showing lower activity than other categories. May reflect community confidence gaps or unclear benefit.`,
+                recommendation: 'Host discussion or highlight existing projects in this category.'
+            });
+        }
+    }
+    
+    return silenceSpots.slice(0, 3);
+}
+
+// Main calculation function
+async function calculateSignals() {
+    try {
+        console.log('[Signals] Starting calculation...');
+        
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+        
+        const feedSnapshot = await db.collection('feed')
+            .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
+            .get();
+        
+        const feedItems = feedSnapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id
+        }));
+        
+        console.log(`[Signals] Fetched ${feedItems.length} feed items`);
+        
+        const trends = calculateTrends(feedItems, 7);
+        const coalitions = detectCoalitions(feedItems, 7);
+        const silenceSpots = detectSilenceSpots(trends);
+        
+        console.log(`[Signals] Found ${trends.length} trends, ${coalitions.length} coalitions, ${silenceSpots.length} silence spots`);
+        
+        await db.collection('signals').doc('weekly_trends').set({
+            trends,
+            coalitions,
+            silenceSpots,
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+            version: '1.0'
+        });
+        
+        console.log('[Signals] ✅ Calculation complete');
+    } catch (error) {
+        console.error('[Signals] ❌ Error:', error);
+    }
+}
+
+// Scheduled function: Run calculations daily
+// Uncomment when deploying to production with scheduled functions enabled
+// exports.calculateSignalsDaily = functions.pubsub.schedule('0 0 * * *').timeZone('UTC').onRun(calculateSignals);
+
+// HTTP endpoint for manual triggering (for testing)
+exports.calculateSignalsManual = functions.https.onRequest((req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(204);
+        return;
+    }
+    
+    // Simple auth: check for a secret header
+    const secret = req.headers['x-signals-secret'];
+    if (secret !== process.env.SIGNALS_CALCULATION_SECRET) {
+        res.status(403).json({ error: 'Unauthorized' });
+        return;
+    }
+    
+    calculateSignals().then(() => {
+        res.json({ success: true, message: 'Signals calculation triggered' });
+    }).catch(error => {
+        res.status(500).json({ error: error.message });
+    });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Cloud Function: Claude Assessment Loop
+// Analyzes posts/projects with Claude API for policy areas, subtypes, moderation
+// Returns token usage for cost estimation
+// ═════════════════════════════════════════════════════════════════════════════════
+
+const POLICY_AREAS = [
+    "Health & Social Care",
+    "Education & Skills",
+    "Environment & Climate",
+    "Housing & Planning",
+    "Economy & Employment",
+    "Transport & Infrastructure",
+    "Justice & Policing",
+    "Social Welfare & Benefits",
+    "Culture & Arts",
+    "Technology & Digital",
+    "Energy & Utilities",
+    "Local Governance",
+    "Immigration & Migration"
+];
+
+const CONTENT_SUBTYPES = {
+    Tech: [
+        "AI & Machine Learning",
+        "Software Development",
+        "Medical Technology",
+        "Research & Data Science",
+        "Automotive & Transport",
+        "Aerospace & Space",
+        "Cybersecurity & Infrastructure",
+        "E-Commerce & Marketplaces",
+        "IoT & Embedded Systems",
+        "Blockchain & Decentralized",
+        "Gaming & Entertainment",
+        "Telecommunications",
+        "Other/General Tech"
+    ],
+    Civil: [
+        "Housing & Urban Development",
+        "Transportation & Mobility",
+        "Environmental Infrastructure",
+        "Water & Sanitation",
+        "Energy Infrastructure",
+        "Public Facilities",
+        "Planning & Zoning",
+        "Public Safety & Emergency Services",
+        "Accessibility & Disability Infrastructure",
+        "Green Space & Parks",
+        "Heritage & Conservation",
+        "Utilities & Waste Management",
+        "Other/General Civil"
+    ],
+    Community: [
+        "Mutual Aid & Food Security",
+        "Mental Health & Wellbeing",
+        "Youth & Education Support",
+        "Elder Care & Support",
+        "Social Networks & Connection",
+        "Arts & Culture Events",
+        "Sports & Recreation",
+        "Volunteering & Civic Engagement",
+        "Language & Integration Services",
+        "Environmental Stewardship",
+        "Economic Skill-building",
+        "Cultural Heritage & Celebration",
+        "Other/General Community"
+    ],
+    Law: [
+        "Rights & Civil Liberties",
+        "Environmental Law & Regulation",
+        "Employment Law",
+        "Consumer Protection",
+        "Data Privacy & Digital Rights",
+        "Housing Law & Tenancy Rights",
+        "Family & Relationship Law",
+        "Immigration & Migration Law",
+        "Criminal Justice Reform",
+        "Corporate & Business Law",
+        "Governance & Democratic Process",
+        "Healthcare & Medical Law",
+        "Other/General Law"
+    ],
+    Behavioral: [
+        "Idea Exchange / Discussion",
+        "Debate / Disagreement",
+        "Social Banter",
+        "Meta Conversation",
+        "Help Request",
+        "Information Seeking",
+        "Clarification",
+        "Rhetorical / Meme Question",
+        "Policy Proposal",
+        "Project Pitch",
+        "Problem Solution",
+        "Blue Sky Thinking",
+        "Problem Identification",
+        "Frustration / Complaint",
+        "Warning / Alert",
+        "Rant / Venting",
+        "Win / Success",
+        "Milestone Reached",
+        "Appreciation",
+        "Community Love",
+        "Information Sharing",
+        "Resource Link",
+        "Research / Data",
+        "Context Update",
+        "Hot Take",
+        "Analysis",
+        "Opinion Piece",
+        "Satire / Snark",
+        "Meme / Joke",
+        "Random Thought",
+        "Meta Humor",
+        "Off-Topic Banter",
+        "Call to Action",
+        "Event Coordination",
+        "Organizing",
+        "Recruitment",
+        "Emotional Support",
+        "Solidarity",
+        "Care / Check-In",
+        "Encouragement",
+        "Platform Feedback",
+        "Bug Report",
+        "Feature Request",
+        "Community Governance"
+    ]
+};
+
+const EMOTIONS = [
+    "Frustration",
+    "Hope",
+    "Anger",
+    "Enthusiasm",
+    "Concern",
+    "Curiosity",
+    "Joy",
+    "Sadness",
+    "Advocacy",
+    "Amusement",
+    "Skepticism",
+    "Urgency",
+    "Gratitude",
+    "Despair",
+    "Inspiration"
+];
+
+const SENTIMENT_TONES = [
+    "Positive",
+    "Negative",
+    "Neutral",
+    "Mixed",
+    "Sarcastic",
+    "Humorous",
+    "Serious",
+    "Urgent"
+];
+
+const SFW_RATINGS = [
+    "Appropriate",
+    "Mild Language",
+    "Suggestive",
+    "Explicit",
+    "Violent/Disturbing"
+];
+
+function buildAssessmentPrompt(entries) {
+    const policyList = POLICY_AREAS.join(", ");
+    const subtypesByCategory = Object.entries(CONTENT_SUBTYPES)
+        .map(([cat, subs]) => `${cat}: ${subs.join(", ")}`)
+        .join("\n");
+    
+    const emotionList = EMOTIONS.join(", ");
+    const toneList = SENTIMENT_TONES.join(", ");
+    const sfwList = SFW_RATINGS.join(", ");
+
+    return `Process the following entries and return a JSON array of assessments.
+
+APPROVED CONTENT TYPES:
+Tech, Civil, Community, Law, Behavioral
+
+APPROVED SUBTYPES BY CATEGORY:
+${subtypesByCategory}
+
+APPROVED POLICY AREAS (13 UK areas):
+${policyList}
+
+APPROVED EMOTIONS (select multiple with intensity 0-1):
+${emotionList}
+
+APPROVED SENTIMENT TONES (pick one):
+${toneList}
+
+APPROVED SFW RATINGS (pick one):
+${sfwList}
+
+ENTRIES TO ASSESS:
+${JSON.stringify(entries, null, 2)}
+
+For each entry, return:
+{
+  "entry_id": "...",
+  "entry_type": "post|project|legislation|bid",
+  "classification": {
+    "primary_type": "Tech|Civil|Community|Law|Behavioral",
+    "primary_subtype": "specific subtype from approved list",
+    "primary_confidence": 0.92,
+    "additional_types": [
+      {"type": "...", "subtype": "...", "confidence": 0.68},
+      ...
+    ]
+  },
+  "policy_areas": [
+    {"area": "Housing & Planning", "confidence": 0.85},
+    ...
+  ],
+  "topics": [
+    {"topic": "housing affordability", "relevance": 0.95},
+    {"topic": "rental market", "relevance": 0.87},
+    ...
+  ],
+  "sentiment": {
+    "overall": "Positive|Negative|Neutral|Mixed|Sarcastic|Humorous|Serious|Urgent",
+    "tone_confidence": 0.88,
+    "emotions": [
+      {"emotion": "Frustration", "intensity": 0.85},
+      {"emotion": "Advocacy", "intensity": 0.72},
+      {"emotion": "Hope", "intensity": 0.55},
+      ...
+    ]
+  },
+  "content_safety": {
+    "sfw_rating": "Appropriate|Mild Language|Suggestive|Explicit|Violent/Disturbing",
+    "explicit_content": false,
+    "safety_flags": [],
+    "confidence": 0.95
+  },
+  "engagement_signals": {
+    "is_call_to_action": true|false,
+    "is_question": true|false,
+    "is_joke_or_meme": true|false,
+    "is_personal_story": true|false,
+    "is_resource_share": true|false,
+    "is_announcement": true|false
+  },
+  "moderation": {
+    "status": "clean|flagged|rejected",
+    "flags": [],
+    "reasoning": "...",
+    "confidence": 0.92
+  },
+  "commands": [
+    {"action": "setClassification", "primary_type": "...", "primary_subtype": "...", "primary_confidence": 0.92},
+    {"action": "setPolicyAreas", "policy_areas": [{"area": "...", "confidence": ...}, ...]},
+    {"action": "setTopics", "topics": [{"topic": "...", "relevance": ...}, ...]},
+    {"action": "setSentiment", "overall_sentiment": "...", "tone": "...", "confidence": 0.88},
+    {"action": "addEmotion", "emotion": "Frustration", "intensity": 0.85},
+    {"action": "setContentSafety", "sfw_rating": "Appropriate", "confidence": 0.95},
+    {"action": "setEngagementSignals", "signals": ["is_call_to_action"]},
+    {"action": "setModerationStatus", "status": "clean"}
+  ]
+}
+
+CLASSIFICATION RULES:
+- Posts can be primarily Behavioral OR map to Tech/Civil/Community/Law
+- Projects should always map to a domain type, but can also include Behavioral
+- If a post discusses policy but uses casual tone, use BOTH
+- Memes and jokes are valid Behavioral classifications
+- policy_areas apply when content relates to governance/legislation
+
+SENTIMENT RULES:
+- People experience multiple emotions; select the most relevant 3-5
+- A frustrated housing post: overall=Negative, emotions=[Frustration:0.9, Advocacy:0.7, Hope:0.3]
+
+MODERATION RULES:
+- Flag only genuinely problematic content
+- Context matters: "f*** the housing crisis" is advocacy, not profanity
+- Disagreement is not abuse; personal attacks are
+
+Return ONLY the JSON array, no other text.`;
+}
+
+// Test endpoint for single post assessment
+exports.assessEntry = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(204);
+        return;
+    }
+    
+    if (req.method !== 'POST') {
+        res.status(400).json({ error: 'POST required' });
+        return;
+    }
+
+    try {
+        // Check API key
+        if (!process.env.ANTHROPIC_API_KEY) {
+            console.error('[Assessment] ANTHROPIC_API_KEY not set');
+            return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+        }
+
+        const { document_id, collection_name } = req.body;
+        
+        if (!document_id || !collection_name) {
+            return res.status(400).json({ 
+                error: 'document_id and collection_name required in body'
+            });
+        }
+
+        console.log(`[Assessment] Fetching ${collection_name}/${document_id}...`);
+
+        // Fetch document from Firestore
+        const docRef = db.collection(collection_name).doc(document_id);
+        const docSnap = await docRef.get();
+
+        if (!docSnap.exists) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+
+        const docData = docSnap.data();
+
+        // Prepare entry for assessment
+        const entry = {
+            id: document_id,
+            type: docData.type || (docData.description ? 'post' : 'project'),
+            title: docData.title || '',
+            text: docData.description || '',
+            category: docData.category || 'Unknown',
+            created_at: docData.createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
+        };
+
+        console.log(`[Assessment] Prepared entry:`, entry);
+
+        // Build prompt
+        const prompt = buildAssessmentPrompt([entry]);
+        console.log(`[Assessment] Built prompt, length: ${prompt.length} chars`);
+
+        // Build request to Claude API
+        const options = {
+            hostname: 'api.anthropic.com',
+            port: 443,
+            path: '/v1/messages',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01'
+            }
+        };
+
+        const requestBody = JSON.stringify({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 2048,
+            system: 'You are a content assessment system for Cloud Beacon. Analyze each entry and return structured metadata as specified. Return ONLY valid JSON, no markdown or explanations.',
+            messages: [
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ]
+        });
+
+        console.log(`[Assessment] Calling Claude API...`);
+
+        return new Promise((resolve) => {
+            const apiRequest = https.request(options, (apiRes) => {
+                let responseData = '';
+                let statusCode = apiRes.statusCode;
+
+                console.log(`[Assessment] Claude responded with status ${statusCode}`);
+
+                apiRes.on('data', (chunk) => {
+                    responseData += chunk;
+                });
+
+                apiRes.on('end', () => {
+                    try {
+                        if (statusCode !== 200) {
+                            console.error(`[Assessment] Claude API error (${statusCode}):`, responseData);
+                            res.status(statusCode).json({ 
+                                error: `Claude API error: ${statusCode}`,
+                                details: responseData
+                            });
+                            resolve();
+                            return;
+                        }
+
+                        const apiResponse = JSON.parse(responseData);
+
+                        if (!apiResponse.content || !apiResponse.content[0]) {
+                            console.error('[Assessment] Invalid API response structure:', apiResponse);
+                            return res.status(500).json({ 
+                                error: 'Invalid API response',
+                                received: apiResponse
+                            });
+                        }
+
+                        const assessmentText = apiResponse.content[0].text;
+                        
+                        console.log(`[Assessment] Claude response received`);
+                        console.log(`[Assessment] Response length: ${assessmentText.length} chars`);
+                        console.log(`[Assessment] Input tokens: ${apiResponse.usage.input_tokens}`);
+                        console.log(`[Assessment] Output tokens: ${apiResponse.usage.output_tokens}`);
+
+                        // Parse assessment JSON
+                        let assessments;
+                        try {
+                            assessments = JSON.parse(assessmentText);
+                        } catch (parseErr) {
+                            console.error('[Assessment] Failed to parse Claude response as JSON:');
+                            console.error('Response text:', assessmentText.substring(0, 500));
+                            return res.status(500).json({ 
+                                error: 'Claude response was not valid JSON',
+                                received: assessmentText.substring(0, 500)
+                            });
+                        }
+
+                        const assessment = Array.isArray(assessments) ? assessments[0] : assessments;
+
+                        res.json({
+                            success: true,
+                            entry_id: document_id,
+                            assessment,
+                            tokens: {
+                                input: apiResponse.usage.input_tokens,
+                                output: apiResponse.usage.output_tokens,
+                                total: apiResponse.usage.input_tokens + apiResponse.usage.output_tokens
+                            },
+                            cost_estimate: {
+                                input_cost_usd: (apiResponse.usage.input_tokens / 1000000) * 3,
+                                output_cost_usd: (apiResponse.usage.output_tokens / 1000000) * 15,
+                                total_cost_usd: ((apiResponse.usage.input_tokens / 1000000) * 3) + ((apiResponse.usage.output_tokens / 1000000) * 15)
+                            }
+                        });
+
+                        resolve();
+                    } catch (error) {
+                        console.error('[Assessment] Error in response handler:', error);
+                        res.status(500).json({ 
+                            error: 'Response processing failed',
+                            message: error.message
+                        });
+                        resolve();
+                    }
+                });
+            });
+
+            apiRequest.on('error', (error) => {
+                console.error('[Assessment] API request error:', error);
+                res.status(500).json({ 
+                    error: 'Claude API request failed',
+                    message: error.message
+                });
+                resolve();
+            });
+
+            // Log request before sending
+            console.log(`[Assessment] Sending ${requestBody.length} bytes to Claude API`);
+            
+            apiRequest.write(requestBody);
+            apiRequest.end();
+        });
+
+    } catch (error) {
+        console.error('[Assessment] Outer catch error:', error);
+        res.status(500).json({ 
+            error: 'Assessment failed',
+            message: error.message,
+            stack: error.stack
+        });
+    }
+});

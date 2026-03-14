@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signals — Cloud Beacon</title>
+    <link rel="stylesheet" href="../../../style.css">
+    <link rel="stylesheet" href="../projects/projectpage/project.css">
+    <style>
+        :root {
+            --tab-color: #6366f1;
+        }
+
+        body {
+            background: var(--color-darkPageBg);
+        }
+
+        .site-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.4);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .site-logo {
+            font-family: 'Playfair Display', serif;
+            color: var(--color-darkFontPrimary);
+            text-decoration: none;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+        }
+
+        .site-logo a {
+            color: var(--color-darkFontPrimary);
+            text-decoration: none;
+        }
+
+        .signals-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .signals-header h1 {
+            font-size: 24px;
+            color: var(--color-darkFontPrimary);
+            margin: 0 0 8px 0;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .signals-header p {
+            font-size: 13px;
+            color: var(--color-darkFontSecondary);
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+
+        .tab-row {
+            display: flex;
+            gap: 3px;
+            padding: 0 4px;
+            padding-top: 12px;
+            flex-wrap: wrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .folder-tab {
+            position: relative;
+            padding: 6px 5px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            border: none;
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
+            background: color-mix(in srgb, var(--tab-color) 30%, #3a3020);
+            color: color-mix(in srgb, var(--tab-color) 80%, #fff);
+            transition: all 0.15s ease;
+            transform: translateY(2px);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .folder-tab:hover {
+            background: color-mix(in srgb, var(--tab-color) 50%, #3a3020);
+            transform: translateY(0px);
+        }
+
+        .folder-tab.active {
+            background: var(--tab-color);
+            color: #fff;
+            transform: translateY(0);
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.2);
+            z-index: 2;
+        }
+
+        @media (min-width: 768px) {
+            .tab-row {
+                padding: 0 8px;
+                padding-top: 16px;
+            }
+
+            .folder-tab {
+                padding: 5px 17px;
+                font-size: 13px;
+            }
+        }
+
+        .paper-sheet {
+            background: var(--color-darkPaperBg);
+            color: var(--color-fontPrimary);
+            padding: 24px;
+            border-radius: 0 4px 16px 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            min-height: 400px;
+        }
+
+        @media (min-width: 768px) {
+            .paper-sheet {
+                padding: 32px;
+                min-height: 500px;
+            }
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .trends-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .trend-card {
+            background: var(--color-cardBackground);
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            padding: 16px;
+            transition: all 0.2s;
+        }
+
+        .trend-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .trend-topic {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-fontPrimary);
+            margin-bottom: 8px;
+            text-transform: capitalize;
+        }
+
+        .trend-delta {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .trend-delta.positive {
+            background: rgba(43, 138, 62, 0.15);
+            color: var(--color-success);
+        }
+
+        .trend-delta.negative {
+            background: rgba(220, 53, 69, 0.15);
+            color: var(--color-delete);
+        }
+
+        .trend-delta.neutral {
+            background: rgba(136, 136, 136, 0.15);
+            color: var(--color-fontSecondary);
+        }
+
+        .trend-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .stat-label {
+            color: var(--color-fontSecondary);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            color: var(--color-fontPrimary);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .trend-categories {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .category-tag {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 2px;
+            background: var(--color-projectTag);
+            color: var(--color-projectTagText);
+            border: 1px solid rgba(54, 79, 199, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .confidence-section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .confidence-label {
+            font-size: 11px;
+            color: var(--color-fontSecondary);
+            margin-bottom: 4px;
+        }
+
+        .confidence-bar {
+            height: 4px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: var(--tab-color);
+            transition: width 0.5s ease;
+        }
+
+        .coalition-card {
+            background: var(--color-cardBackground);
+            border: 1px solid var(--color-border);
+            border-left: 4px solid var(--color-success);
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .coalition-topics {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .coalition-topic {
+            padding: 6px 12px;
+            background: rgba(43, 138, 62, 0.1);
+            border: 1px solid rgba(43, 138, 62, 0.3);
+            border-radius: 3px;
+            font-size: 12px;
+            color: var(--color-success);
+            text-transform: capitalize;
+        }
+
+        .coalition-strength {
+            font-size: 12px;
+            color: var(--color-fontSecondary);
+            margin-bottom: 8px;
+        }
+
+        .strength-bar {
+            height: 4px;
+            background: rgba(43, 138, 62, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .strength-fill {
+            height: 100%;
+            background: var(--color-success);
+        }
+
+        .coalition-reasoning {
+            font-size: 12px;
+            color: var(--color-fontSecondary);
+            line-height: 1.5;
+        }
+
+        .silence-card {
+            background: var(--color-cardBackground);
+            border: 1px solid var(--color-border);
+            border-left: 4px solid var(--color-warning);
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .silence-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-fontPrimary);
+            margin-bottom: 8px;
+        }
+
+        .silence-reasoning {
+            font-size: 12px;
+            color: var(--color-fontSecondary);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .silence-recommendation {
+            font-size: 11px;
+            padding: 8px;
+            background: rgba(243, 156, 18, 0.1);
+            border-left: 2px solid var(--color-warning);
+            color: var(--color-warning);
+            border-radius: 2px;
+            font-style: italic;
+        }
+
+        .loading-container {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading-spinner {
+            font-size: 32px;
+            animation: spin 2s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--color-fontSecondary);
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--color-fontSecondary);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .timestamp {
+            text-align: center;
+            color: rgba(0,0,0,0.4);
+            font-size: 10px;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid var(--color-border);
+            letter-spacing: 0.5px;
+        }
+
+        .folder-workspace {
+            width: auto;
+            max-width: 960px;
+            margin: 32px auto;
+            padding: 0 16px 60px;
+        }
+
+        .folder-shell {
+            background: var(--color-darkCardBg);
+            border-radius: 4px 16px 16px 16px;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <div class="site-header">
+        <div class="site-logo"><a href="../../../index.html">Cloud Beacon</a></div>
+        <nav>
+            <a href="../../../index.html">Home</a>
+            <a href="../governance/governance.html">Governance</a>
+            <a href="signals.html">Signals</a>
+        </nav>
+    </div>
+
+    <div class="folder-workspace">
+        <div class="folder-shell">
+            <div class="signals-header">
+                <h1>📡 SIGNALS</h1>
+                <p>Patterns in Community Engagement</p>
+            </div>
+
+            <div class="tab-row">
+                <button class="folder-tab active" onclick="switchTab('trends')">Emerging Trends</button>
+                <button class="folder-tab" onclick="switchTab('coalitions')">Connected Communities</button>
+                <button class="folder-tab" onclick="switchTab('silence')">Quiet Spaces</button>
+            </div>
+
+            <div class="paper-sheet">
+                <!-- Trends Tab -->
+                <div id="trends" class="tab-content active">
+                    <div id="trendsContainer" class="trends-grid">
+                        <div class="loading-container">
+                            <div class="loading-spinner">⧗</div>
+                            <div class="loading-text">Analyzing community patterns</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coalitions Tab -->
+                <div id="coalitions" class="tab-content">
+                    <div id="coalitionsContainer">
+                        <div class="loading-container">
+                            <div class="loading-spinner">⧗</div>
+                            <div class="loading-text">Finding connections</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Silence Spots Tab -->
+                <div id="silence" class="tab-content">
+                    <div id="silenceContainer">
+                        <div class="loading-container">
+                            <div class="loading-spinner">⧗</div>
+                            <div class="loading-text">Listening for gaps</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="timestamp">
+                    <div>Last analyzed: <span id="lastUpdated">Loading...</span></div>
+                    <div style="margin-top: 8px; color: rgba(0,0,0,0.3); font-size: 9px;">
+                        Analysis based on community posts and projects
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, auth } from '../../../firebase.js';
+        import { collection, getDocs, query, serverTimestamp, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // ANALYSIS ENGINE
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        function extractNounPhrases(text) {
+            if (!text) return [];
+            
+            const patterns = [
+                /(?:climate|housing|transport|education|health|safety|community|support|policy|action|planning|development|reform|change|initiative|program|service|system|governance|technology|environment|social|public|infrastructure|regulation|rights|justice|equality|wellbeing|care|protection|investment|accessibility|mental|wellbeing|art|culture|digital)\s+(?:\w+\s+)*\w+/gi,
+                /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:project|initiative|program|policy)\b/g
+            ];
+            
+            let phrases = [];
+            for (let pattern of patterns) {
+                const matches = text.match(pattern) || [];
+                phrases = phrases.concat(matches);
+            }
+            
+            return [...new Set(phrases.map(p => p.toLowerCase().trim()))].filter(p => p.length > 5);
+        }
+
+        function calculateTrends(feedItems, timeWindow = 7) {
+            const now = new Date();
+            const windowStart = new Date(now - timeWindow * 24 * 60 * 60 * 1000);
+            const previousWindowStart = new Date(now - (timeWindow * 2) * 24 * 60 * 60 * 1000);
+            
+            const currentItems = feedItems.filter(item => {
+                const date = item.createdAt?.toDate?.() || item.createdAt;
+                return date >= windowStart;
+            });
+            
+            const previousItems = feedItems.filter(item => {
+                const date = item.createdAt?.toDate?.() || item.createdAt;
+                return date >= previousWindowStart && date < windowStart;
+            });
+            
+            const topicMentions = {};
+            const topicUsers = {};
+            const topicCategories = {};
+            
+            for (let item of currentItems) {
+                const text = (item.description || item.title || '') + ' ' + (item.categoryAnswer || '');
+                const phrases = extractNounPhrases(text);
+                
+                for (let phrase of phrases) {
+                    topicMentions[phrase] = (topicMentions[phrase] || 0) + 1;
+                    topicUsers[phrase] = topicUsers[phrase] || new Set();
+                    topicUsers[phrase].add(item.authorId);
+                    topicCategories[phrase] = topicCategories[phrase] || new Set();
+                    if (item.category) topicCategories[phrase].add(item.category);
+                }
+            }
+            
+            const previousMentions = {};
+            for (let item of previousItems) {
+                const text = (item.description || item.title || '') + ' ' + (item.categoryAnswer || '');
+                const phrases = extractNounPhrases(text);
+                for (let phrase of phrases) {
+                    previousMentions[phrase] = (previousMentions[phrase] || 0) + 1;
+                }
+            }
+            
+            const trends = Object.entries(topicMentions)
+                .filter(([topic, count]) => count >= 1)
+                .map(([topic, count]) => {
+                    const prev = previousMentions[topic] || 1;
+                    const changePercent = Math.round(((count - prev) / prev) * 100);
+                    const uniqueUsers = topicUsers[topic]?.size || 0;
+                    const categories = Array.from(topicCategories[topic] || []);
+                    const confidence = Math.min(0.95, Math.max(0.3, (count / 50) * (uniqueUsers / 25)));
+                    
+                    return {
+                        topic,
+                        count,
+                        changePercent,
+                        uniqueUsers,
+                        categories,
+                        confidence: Math.round(confidence * 100) / 100,
+                        evidence: `${count} mention${count > 1 ? 's' : ''}`
+                    };
+                })
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 15);
+            
+            return trends;
+        }
+
+        function detectCoalitions(feedItems, timeWindow = 7) {
+            const now = new Date();
+            const windowStart = new Date(now - timeWindow * 24 * 60 * 60 * 1000);
+            
+            const currentItems = feedItems.filter(item => {
+                const date = item.createdAt?.toDate?.() || item.createdAt;
+                return date >= windowStart;
+            });
+            
+            const topicToUsers = {};
+            
+            for (let item of currentItems) {
+                const text = (item.description || item.title || '') + ' ' + (item.categoryAnswer || '');
+                const phrases = extractNounPhrases(text);
+                
+                for (let phrase of phrases) {
+                    topicToUsers[phrase] = topicToUsers[phrase] || new Set();
+                    topicToUsers[phrase].add(item.authorId);
+                }
+            }
+            
+            const coalitions = [];
+            const topicList = Object.keys(topicToUsers);
+            
+            for (let i = 0; i < topicList.length; i++) {
+                for (let j = i + 1; j < topicList.length; j++) {
+                    const topicA = topicList[i];
+                    const topicB = topicList[j];
+                    const usersA = topicToUsers[topicA];
+                    const usersB = topicToUsers[topicB];
+                    
+                    const intersection = new Set([...usersA].filter(u => usersB.has(u)));
+                    const union = new Set([...usersA, ...usersB]);
+                    const jaccard = union.size > 0 ? intersection.size / union.size : 0;
+                    
+                    if (jaccard > 0.2 && intersection.size >= 2) {
+                        coalitions.push({
+                            topics: [topicA, topicB],
+                            strength: Math.round(jaccard * 100) / 100,
+                            userOverlap: intersection.size,
+                            reasoning: `${intersection.size} community member${intersection.size > 1 ? 's' : ''} engaged with both topics.`
+                        });
+                    }
+                }
+            }
+            
+            return coalitions.sort((a, b) => b.userOverlap - a.userOverlap).slice(0, 8);
+        }
+
+        function detectSilenceSpots(trends, feedItems) {
+            const silenceSpots = [];
+            const trendTopics = trends.map(t => t.topic.toLowerCase());
+            
+            // Check for category imbalance
+            const categoryCount = {};
+            for (let item of feedItems) {
+                if (item.category) {
+                    categoryCount[item.category] = (categoryCount[item.category] || 0) + 1;
+                }
+            }
+            
+            const avgCount = Object.values(categoryCount).reduce((a, b) => a + b, 0) / Object.keys(categoryCount).length;
+            
+            for (let [category, count] of Object.entries(categoryCount)) {
+                if (count < avgCount * 0.4) {
+                    silenceSpots.push({
+                        potentialTopic: `${category} Category`,
+                        reasoning: `"${category}" projects show ${Math.round(count)} mentions vs. average ${Math.round(avgCount)}. Lower engagement or visibility gap.`,
+                        recommendation: 'Consider featuring projects in this category or hosting community discussion.'
+                    });
+                }
+            }
+            
+            return silenceSpots.slice(0, 4);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // RENDERING
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        function renderTrends(trends) {
+            const container = document.getElementById('trendsContainer');
+            if (!trends.length) {
+                container.innerHTML = '<div class="empty-state">No community patterns detected yet. More posts needed for analysis.</div>';
+                return;
+            }
+
+            container.innerHTML = trends.map(trend => `
+                <div class="trend-card">
+                    <div class="trend-topic">${trend.topic}</div>
+                    
+                    <div class="trend-delta ${trend.changePercent > 0 ? 'positive' : trend.changePercent < 0 ? 'negative' : 'neutral'}">
+                        ${trend.changePercent > 0 ? '▲' : trend.changePercent < 0 ? '▼' : '→'}
+                        ${Math.abs(trend.changePercent)}% this week
+                    </div>
+
+                    <div class="trend-stats">
+                        <div class="stat">
+                            <div class="stat-label">Mentions</div>
+                            <div class="stat-value">${trend.count}</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">Participants</div>
+                            <div class="stat-value">${trend.uniqueUsers}</div>
+                        </div>
+                    </div>
+
+                    ${trend.categories.length > 0 ? `
+                        <div class="trend-categories">
+                            ${trend.categories.map(cat => `<span class="category-tag">${cat}</span>`).join('')}
+                        </div>
+                    ` : ''}
+
+                    <div class="confidence-section">
+                        <div class="confidence-label">Confidence: ${Math.round(trend.confidence * 100)}%</div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: ${trend.confidence * 100}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderCoalitions(coalitions) {
+            const container = document.getElementById('coalitionsContainer');
+            if (!coalitions.length) {
+                container.innerHTML = '<div class="empty-state">No strong topic coalitions detected. As more community members engage, patterns will emerge.</div>';
+                return;
+            }
+
+            container.innerHTML = coalitions.map(coalition => `
+                <div class="coalition-card">
+                    <div class="coalition-topics">
+                        ${coalition.topics.map(topic => `<span class="coalition-topic">${topic}</span>`).join('')}
+                    </div>
+                    
+                    <div class="coalition-strength">
+                        <span><strong>${coalition.userOverlap}</strong> shared voices</span>
+                    </div>
+                    
+                    <div class="strength-bar">
+                        <div class="strength-fill" style="width: ${coalition.strength * 100}%"></div>
+                    </div>
+
+                    <div class="coalition-reasoning">
+                        ${coalition.reasoning}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderSilenceSpots(silenceSpots) {
+            const container = document.getElementById('silenceContainer');
+            if (!silenceSpots.length) {
+                container.innerHTML = '<div class="empty-state">Community engagement is well-distributed across all categories.</div>';
+                return;
+            }
+
+            container.innerHTML = silenceSpots.map(spot => `
+                <div class="silence-card">
+                    <div class="silence-title">🔇 ${spot.potentialTopic}</div>
+                    <div class="silence-reasoning">${spot.reasoning}</div>
+                    <div class="silence-recommendation">
+                        💭 ${spot.recommendation}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.switchTab = function(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.folder-tab').forEach(btn => btn.classList.remove('active'));
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        };
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        async function loadSignals() {
+            try {
+                console.log('[Signals] Fetching from feed collection...');
+                
+                // Fetch all feed items
+                const feedSnapshot = await getDocs(collection(db, 'feed'));
+                const feedItems = feedSnapshot.docs.map(doc => ({
+                    ...doc.data(),
+                    id: doc.id
+                }));
+                
+                console.log(`[Signals] Fetched ${feedItems.length} items`);
+                
+                // Calculate analyses
+                const trends = calculateTrends(feedItems);
+                const coalitions = detectCoalitions(feedItems);
+                const silenceSpots = detectSilenceSpots(trends, feedItems);
+                
+                console.log(`[Signals] Found ${trends.length} trends, ${coalitions.length} coalitions, ${silenceSpots.length} silence spots`);
+                
+                // Render
+                renderTrends(trends);
+                renderCoalitions(coalitions);
+                renderSilenceSpots(silenceSpots);
+                
+                // Update timestamp
+                document.getElementById('lastUpdated').textContent = new Date().toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+            } catch (error) {
+                console.error('[Signals] Error:', error);
+                document.getElementById('trendsContainer').innerHTML = `<div class="empty-state">Error loading patterns: ${error.message}</div>`;
+            }
+        }
+
+        // Load on page load
+        document.addEventListener('DOMContentLoaded', loadSignals);
+    </script>
+</body>
+</html>

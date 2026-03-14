@@ -1,0 +1,81 @@
+%%M3 EPOCH:2026-03 SRC:M2 RATIO:>85%
+#ARCH
+CB:app.js→src/{feat,svc,ui,utils,data,tools} FB-Firestore[users|projects|activities|votes|posts|bids] GHA→FBCDN 1-2m
+H3:ai_signals.py(orch)→{engine,vision,state_engine}.py + bridge_{claude,chatgpt,copilot}.py[FACTORY] + {mouse,kbd,sys}.py
+H3-FLOW:scr→ai_input.json(<50KB,!b64)→AI(≥60s)→ai_output.json→exec→feedback→↺
+
+#PAT
+DENORM:∀write→ActivitySvc.log(uId,cId,type,meta) READ:orderBy(ts,desc).limit(k) O(n²)→O(1) 30-60s→50ms 300-1000x
+BRIDGE:abstract BridgeBase{send_state,wait_resp,read_resp}→config-factory NEW:extend+3methods
+CONF:score0-100 ≥70exec 40-69gate <30refuse transparent>hiding
+STATE:2files ai_{in,out}.json reproducible !clipboard !b64 <50KB
+POLL:1s-interval return-on-ready max15m (was:fixed10s)
+VTIER:T1=CDP(99%$0)→T2=pyCV(75-90%$0)→T3=AIvision(50tok) avoid:mandate-T3→$50/turn target:$0.001/turn
+LOGFB:state.recent_actions[{action,success,result}]+action_feedback breaks:5x-repeat
+
+#SCHEMA
+AiIn:{goal,instructions,turn,screen:{w,h,dpi},detection_summary,detections:{browser_tabs,ui_elements,grid,bars},methods_used[],available_tools[],recent_actions[{action,success,result}],action_feedback,state_description}
+AiOut:{action[click|type|syscmd|wait|done],params:{x,y,text,cmd,dur},confidence,reasoning,next_state_exp}
+Activity:{userId,contentId,type[post|vote|comment|bid],metadata,timestamp:ISO8601}
+
+#CONSTRAINTS
+!b64-in-files →230K-tok-overflow
+py≤3.12 (3.13=no-wheels 1-2yr-lag)
+path:src/features/X/Y/file.js→../../../svc (depth=3 from src/)
+win32-SetFgWin !pygetwindow
+timeout≥60s
+statefiles<50KB
+
+#UI-MATRIX WHITELIST≥70%
+api99 cfg98 multiturn95 forms94 terminal92 sheets87 | feed45 chat45 social35 →REFUSE<50%
+
+#FAIL-FIX
+b64_img:embed-b64-in-json→230K | use:binclip|fileref
+pathDepth:counted2not3 | recalc:depth+page_depth+1
+eagerVision:T3-always | T1+T2-first
+monologue:!recent_actions→5x-repeat | add:action_feedback
+generalAI:chaotic-UI→10Ktok-paralysis | whitelist-only
+py313:no-wheels | use:3.12
+clipboard:fragile+interferes | files
+
+#PERF B→A
+profload:30-60s→50ms[300-1000x:DENORM]
+query:O(n²)→O(1)[indexed-orderBy]
+vision:230Ktok→$0.001[T1T2T3]
+patherr:8→0[pathrule]
+timeout:30s✗→60s✓
+deploy:manual→1-2m[GHA]
+
+#INVARIANTS
+1.activities:{uId,cId,type,meta,ts} ALL-REQUIRED
+2.ai_input:!b64
+3.path:../../../ for feat/*/page.js
+4.timeout:≥60s reasoning
+5.conf:<40gate <30refuse
+6.H3:≥3providers via BRIDGE
+7.vision:T1+T2 BEFORE T3
+8.focus:win32 SetFgWin
+9.statefiles:<50KB
+
+#PROVIDERS
+Claude:native-vis 3-10s $0.001 95% DEFAULT
+ChatGPT:native-vis 3-10s $0.001 94%
+Copilot:in-editor var $0 80% manual
+ChatGPT-Se:file-upload 5-15s $0.001 85% fragile(UI-driven)
+
+#TODO
+RDY:MCPs-persist-mem|ext-archive|auto-mod
+BLOCKED:EM_App(↑py3.12)|H3-gameplay(↑vision)
+PROVEN:denorm300x|bridge-scales|files-reliable|conf-safe
+
+#LESSONS⊕ANTI
+monolith-first-then-bridge | b64=invisible-cost-bomb | file≫UIauto(10:1)
+tiers≫mandate-AI | feedback=1Ktok-saves-10K | conf-score:DAY1-not-later
+py-ver:lag1-2yr | UI-struct≫AI-cap | denorm:write2x=read1000x
+bridge=yr2survival | transparent>hide | lazy-load=50x-slower | DRY-prompts
+
+#VOCAB
+T1/2/3=vision-tiers CDP=ChromeDevTools DENORM=activity-denorm
+BRIDGE=multi-provider-abstract CONF=confidence-gating
+DRY=dont-repeat-yourself b64=base64 ts=timestamp
+%%END M3 ~4.1KB
