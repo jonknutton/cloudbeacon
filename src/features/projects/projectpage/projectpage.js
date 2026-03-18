@@ -118,8 +118,17 @@ async function loadProject() {
             currentItem._category = 'legislative';
         } else {
             currentItem = await getProject(projectId);
-            if (!currentItem) { 
-                setElementText('projectTitle', 'Project not found');
+            if (!currentItem) {
+                // Check if it's an offline/timeout issue
+                if (navigator.onLine === false) {
+                    setElementText('projectTitle', '🔌 No internet connection');
+                    const desc = document.getElementById('projectDescription');
+                    if (desc) desc.textContent = 'Please check your internet connection and try again.';
+                } else {
+                    setElementText('projectTitle', '⚠️ Project data unavailable');
+                    const desc = document.getElementById('projectDescription');
+                    if (desc) desc.textContent = 'The Firebase backend is not responding. Please refresh the page or try again in a moment.';
+                }
                 return; 
             }
         }
@@ -140,7 +149,15 @@ async function loadProject() {
             notify: true,
             context: { projectId, itemType }
         });
-        setElementText('projectTitle', 'Error loading project');
+        
+        // Show more specific error message
+        if (err.code === 'unavailable' || err.message?.includes('offline')) {
+            setElementText('projectTitle', '⚠️ Connection timeout');
+            const desc = document.getElementById('projectDescription');
+            if (desc) desc.textContent = 'Firestore is not responding. This may be a temporary service issue. Please try refreshing the page.';
+        } else {
+            setElementText('projectTitle', '❌ Error loading project');
+        }
     }
 }
 
@@ -4121,6 +4138,21 @@ window.toggleBidTask        = toggleBidTask;
 window.renderBidsForTask    = renderBidsForTask;
 window.handleBidVote        = handleBidVote;
 window.awardBid             = awardBid;
+
+// Monitor network status
+window.addEventListener('online', () => {
+    console.log('✅ Connection restored. Attempting to reload project...');
+    loadProject();
+});
+
+window.addEventListener('offline', () => {
+    console.warn('⚠️ No internet connection detected');
+    const titleEl = document.getElementById('projectTitle');
+    if (titleEl && !titleEl.textContent.includes('project')) {
+        // Only show if we don't already have project data
+        titleEl.textContent = '🔌 Offline - Please check your internet connection';
+    }
+});
 
 // Wait for DOM to be ready before initializing
 if (document.readyState === 'loading') {

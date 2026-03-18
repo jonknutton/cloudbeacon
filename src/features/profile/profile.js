@@ -445,8 +445,8 @@ async function loadProjects() {
         const color = catColors[p.category] || catColors[cat] || '#5c7cfa';
         const icon  = catIcons[p.category]  || catIcons[cat]  || '📁';
         const href  = p.type === 'legislation'
-            ? `src/features/projects/projectpage/project.html?id=${p.id}&type=legislation`
-            : `src/features/projects/projectpage/project.html?id=${p.id}`;
+            ? `/src/features/projects/projectpage/project.html?id=${p.id}&type=legislation`
+            : `/src/features/projects/projectpage/project.html?id=${p.id}`;
         return `
             <div class="profile-project-card">
                 <div class="profile-project-tab" style="background:${color}">${icon} ${p.category || 'Project'}</div>
@@ -511,7 +511,7 @@ async function loadVotes() {
                     </div>
                     <div class="vote-details">
                         <div style="font-weight:600;color:#333;">${voteText}</div>
-                        <a href="src/features/projects/projectpage/project.html?id=${vote.projectId}" style="color:${catColor};text-decoration:none;font-size:13px;margin-top:2px;display:inline-block;">${vote.projectTitle}</a>
+                        <a href="/src/features/projects/projectpage/project.html?id=${vote.projectId}" style="color:${catColor};text-decoration:none;font-size:13px;margin-top:2px;display:inline-block;">${vote.projectTitle}</a>
                         <div style="font-size:11px;color:#999;margin-top:4px;">${date} at ${time}</div>
                     </div>
                 </div>`;
@@ -586,7 +586,7 @@ async function loadWork() {
                 <div class="activity-item" style="border-left:3px solid ${statusColor};">
                     <div style="flex:1;">
                         <div style="font-weight:600;color:#fff;">
-                            Bid on <a href="src/features/projects/projectpage/project.html?id=${bid.projectId}" style="color:#3b82f6;text-decoration:none;">${escapeHtml(bid.projectTitle)}</a>
+                            Bid on <a href="/src/features/projects/projectpage/project.html?id=${bid.projectId}" style="color:#3b82f6;text-decoration:none;">${escapeHtml(bid.projectTitle)}</a>
                         </div>
                         <div style="font-size:13px;color:#bbb;margin-top:4px;">
                             Task: <strong>${escapeHtml(bid.taskName)}</strong>

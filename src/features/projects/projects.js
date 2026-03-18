@@ -80,17 +80,42 @@ export async function createProject(title, category, overview, isPublic, headerI
 }
 
 export async function getProject(projectId) {
-    try {
-        const snapshot = await getDoc(doc(db, 'projects', projectId));
-        return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
-    } catch (err) {
-        handleError(err, 'fetching project', {
-            notify: false,
-            fallback: null,
-            context: { projectId }
-        });
-        return null;
+    const maxRetries = 2;
+    let lastError = null;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            const snapshot = await getDoc(doc(db, 'projects', projectId));
+            return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+        } catch (err) {
+            lastError = err;
+            
+            // If it's a timeout or offline error and we have retries left, wait and retry
+            const isRetryable = err.code === 'unavailable' || 
+                               err.message?.includes('offline') || 
+                               err.message?.includes('timeout') ||
+                               err.message?.includes("didn't respond");
+            
+            if (isRetryable && attempt < maxRetries) {
+                // Exponential backoff: 1s, then 2s
+                const delayMs = Math.pow(2, attempt) * 1000;
+                console.warn(`⚠️ Firestore timeout/offline. Retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+                continue;
+            }
+            
+            // If not retryable or out of retries, handle error
+            handleError(err, 'fetching project', {
+                notify: false,
+                fallback: null,
+                context: { projectId, attempts: attempt + 1 }
+            });
+            return null;
+        }
     }
+    
+    // Fallback (shouldn't reach here)
+    return null;
 }
 
 // Fetch a single feed item by its feed doc ID (used for legislation)
