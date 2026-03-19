@@ -4,7 +4,7 @@
 
 // Import Firebase and Firestore functions 
 import { db, auth } from '../../../firebase.js';
-import { collection, getDocs, query } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { collection, getDocs, query, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
 // Import real Budget 2025 data
@@ -547,7 +547,24 @@ async function loadManifestoTab(country) {
 async function switchManifesto(type) {
     try {
         console.log('[Governance] Switching to manifesto:', type);
-        const manifesto = await loadManifestoByType(type);
+        
+        // Build manifesto based on type
+        let manifesto;
+        if (type === 'community') {
+            console.log('[Governance] Building community manifesto...');
+            manifesto = await buildCommunityManifesto();
+            console.log('[Governance] Community manifesto built:', manifesto);
+        } else if (type === 'personal') {
+            console.log('[Governance] Building personal manifesto...');
+            manifesto = await buildPersonalManifesto();
+            console.log('[Governance] Personal manifesto built:', manifesto);
+        } else {
+            console.log('[Governance] Building party manifesto for:', type);
+            manifesto = await buildPartyManifesto(type);
+            console.log('[Governance] Party manifesto built:', manifesto);
+        }
+        
+        console.log('[Governance] About to render manifesto, manifesto is:', manifesto ? 'present' : 'null');
         renderManifestoTab(manifesto);
         
         // Update dropdown to reflect current selection
@@ -557,6 +574,325 @@ async function switchManifesto(type) {
         }
     } catch (error) {
         console.error('[Governance] Error switching manifesto:', error);
+    }
+}
+
+/**
+ * Build Manifesto from Priority Scores
+ * Creates unified template showing what party stands for and doesn't stand for
+ * Scores 4+: "stands for", Scores 1-2: "doesn't stand for"
+ */
+function buildManifestoFromPriorityScores(scores, manifestoName, manifestoType = 'party') {
+    console.log('[Governance] Building manifesto from scores:', { 
+        manifestoName, 
+        manifestoType, 
+        scoresCount: Object.keys(scores).length,
+        policyPrioritiesLoaded: !!POLICY_PRIORITIES,
+        partyScoresLoaded: !!PARTY_PRIORITY_SCORES
+    });
+    
+    if (!POLICY_PRIORITIES || !PARTY_PRIORITY_SCORES) {
+        console.error('Priority data not loaded - POLICY_PRIORITIES:', !!POLICY_PRIORITIES, 'PARTY_PRIORITY_SCORES:', !!PARTY_PRIORITY_SCORES);
+        return null;
+    }
+
+    const policies = [];
+    const POLICY_AREAS = Object.keys(POLICY_PRIORITIES);
+    console.log('[Governance] Processing', POLICY_AREAS.length, 'policy areas');
+
+    POLICY_AREAS.forEach(areaId => {
+        const areaData = POLICY_PRIORITIES[areaId];
+        const questions = areaData.questions || [];
+
+        // Filter priorities by score
+        const standsFor = [];
+        const doesntStandFor = [];
+
+        questions.forEach(q => {
+            const scoreKey = `${areaId}.${q.id}`;
+            const score = scores[scoreKey] !== undefined ? scores[scoreKey] : 3;
+
+            if (score >= 4) {
+                standsFor.push({
+                    question: q.question,
+                    score: score,
+                    isHotTopic: q.isHotTopic
+                });
+            } else if (score <= 2) {
+                doesntStandFor.push({
+                    question: q.question,
+                    score: score,
+                    isHotTopic: q.isHotTopic
+                });
+            }
+        });
+
+        // For community and personal manifestos, only show areas with actual positions
+        // For party manifestos, show all areas for completeness
+        if (manifestoType !== 'party' && standsFor.length === 0 && doesntStandFor.length === 0) {
+            return; // Skip this area if no positions and it's community/personal
+        }
+
+        // Build policy text
+        let position = '';
+        
+        if (standsFor.length > 0) {
+            position += '<strong>Stands For:</strong><ul style="margin: 8px 0; padding-left: 20px;">';
+            standsFor.forEach(item => {
+                // Format score: 4=Strong, 4.2=Strong, 5=Very Strong
+                const scoreLabel = item.score >= 4.7 ? 'Very Strong' : item.score >= 4 ? 'Strong' : '';
+                position += `<li style="margin: 4px 0; display: flex; justify-content: space-between; align-items: center;"><span>${item.question}</span><span style="font-size: 0.85em; font-weight: 600; color: var(--color-fontSecondary); margin-left: 12px; white-space: nowrap;">${item.score.toFixed(1)}/5 ${scoreLabel}</span></li>`;
+            });
+            position += '</ul>';
+        }
+
+        if (doesntStandFor.length > 0) {
+            position += '<strong style="margin-top: 12px; display: block;">Doesn\'t Stand For:</strong><ul style="margin: 8px 0; padding-left: 20px;">';
+            doesntStandFor.forEach(item => {
+                // Score 1=Very against, 2=Against
+                const scoreLabel = item.score <= 1.3 ? 'Very Against' : item.score <= 2 ? 'Against' : '';
+                position += `<li style="margin: 4px 0; display: flex; justify-content: space-between; align-items: center;"><span>${item.question}</span><span style="font-size: 0.85em; font-weight: 600; color: var(--color-fontSecondary); margin-left: 12px; white-space: nowrap;">${item.score.toFixed(1)}/5 ${scoreLabel}</span></li>`;
+            });
+            position += '</ul>';
+        }
+
+        const noPositionCount = questions.length - standsFor.length - doesntStandFor.length;
+        if (noPositionCount > 0 && (standsFor.length > 0 || doesntStandFor.length > 0)) {
+            position += `<p style="margin-top: 12px; font-size: 0.85em; color: var(--color-fontSecondary);">Neutral on ${noPositionCount} priority(ies) in this area</p>`;
+        }
+
+        if (!position) {
+            position = 'Unclear or mixed position on priorities in this area.';
+        }
+
+        policies.push({
+            area: areaId,
+            title: areaData.title,
+            icon: areaData.color ? '' : areaData.color,
+            position: position,
+            standForCount: standsFor.length,
+            dontStandForCount: doesntStandFor.length
+        });
+    });
+
+    console.log('[Governance] Manifesto has', policies.length, 'policies after filtering');
+    
+    return {
+        type: manifestoType,
+        name: manifestoName,
+        description: manifestoType === 'community' ? 'Community consensus on policy priorities' : manifestoType === 'personal' ? 'Your personal policy preferences' : 'Party policy positions',
+        policies: policies,
+        generatedAt: new Date().toISOString()
+    };
+}
+
+/**
+ * Build Party Manifesto from Party Scores
+ */
+async function buildPartyManifesto(partyId) {
+    try {
+        const partyScores = {};
+        
+        // Get all party scores for this party
+        Object.entries(PARTY_PRIORITY_SCORES).forEach(([key, scores]) => {
+            if (scores[partyId] !== undefined) {
+                partyScores[key] = scores[partyId];
+            }
+        });
+
+        const partyInfo = {
+            labour: { name: 'Labour Party', leader: 'Keir Starmer', color: '#E4003B' },
+            conservative: { name: 'Conservative Party', leader: 'Kemi Badenoch', color: '#0087DC' },
+            libdems: { name: 'Liberal Democrats', leader: 'Ed Davey', color: '#FAA61A' },
+            green: { name: 'Green Party', leader: 'Adrian Ramsay', color: '#6AB023' },
+            reform: { name: 'Reform UK', leader: 'Nigel Farage', color: '#0087DC' },
+            plaid: { name: 'Plaid Cymru', leader: 'Rhun ap Iorwerth', color: '#005B54' }
+        };
+
+        const party = partyInfo[partyId] || { name: 'Unknown Party' };
+        const manifesto = buildManifestoFromPriorityScores(partyScores, party.name, 'party');
+        
+        // Add party metadata
+        manifesto.party = party.name;
+        manifesto.leader = party.leader;
+        manifesto.colour = party.color;
+        
+        return manifesto;
+    } catch (error) {
+        console.error('[Governance] Error building party manifesto:', error);
+        return null;
+    }
+}
+
+/**
+ * Build Community Manifesto from Average Scores
+ */
+async function buildCommunityManifesto() {
+    try {
+        console.log('[Governance] Building community manifesto...');
+        console.log('[Governance] window.priorityAverages:', window.priorityAverages);
+        console.log('[Governance] POLICY_PRIORITIES loaded:', !!POLICY_PRIORITIES);
+        
+        // Calculate community average scores
+        const communityScores = await calculateCommunityAverageScores();
+        console.log('[Governance] Community scores calculated:', Object.keys(communityScores).length, 'scores');
+        console.log('[Governance] Sample scores:', Object.entries(communityScores).slice(0, 3));
+        
+        // If no scores available, show a message
+        if (!communityScores || Object.keys(communityScores).length === 0) {
+            console.log('[Governance] No community scores available - showing placeholder manifesto');
+            return {
+                type: 'community',
+                name: 'Community Manifesto',
+                description: 'No community voting data available yet. Be the first to share your priorities!',
+                leader: 'Community Manifesto',
+                policies: [],
+                generatedAt: new Date().toISOString(),
+                isPlaceholder: true
+            };
+        }
+        
+        const manifesto = buildManifestoFromPriorityScores(communityScores, 'Community Manifesto', 'community');
+        console.log('[Governance] Manifesto created with', manifesto?.policies?.length || 0, 'policies');
+        
+        if (manifesto) {
+            manifesto.leader = 'Community Manifesto';
+            manifesto.description = 'Collective policy positions based on community voting';
+        }
+        
+        return manifesto;
+    } catch (error) {
+        console.error('[Governance] Error building community manifesto:', error);
+        return null;
+    }
+}
+
+/**
+ * Build Personal Manifesto from User Responses
+ */
+async function buildPersonalManifesto() {
+    try {
+        const currentUser = auth.currentUser;
+        console.log('[Governance] Building personal manifesto for user:', currentUser?.uid);
+        
+        if (!currentUser) {
+            console.warn('[Governance] No user authenticated for personal manifesto');
+            return {
+                type: 'personal',
+                name: 'Your Personal Manifesto',
+                description: 'Sign in to see your personal policy preferences',
+                leader: 'Your Personal Manifesto',
+                policies: [],
+                generatedAt: new Date().toISOString(),
+                isPlaceholder: true
+            };
+        }
+
+        // Get user's priority responses - check localStorage first
+        const personalScores = await getPersonalManifestoScores(currentUser.uid);
+        
+        console.log('[Governance] Personal scores retrieved:', Object.keys(personalScores).length, 'scores');
+        console.log('[Governance] Sample scores:', Object.entries(personalScores).slice(0, 3));
+        
+        // If no responses yet, show placeholder
+        if (!personalScores || Object.keys(personalScores).length === 0) {
+            console.log('[Governance] No personal scores available - showing placeholder manifesto');
+            return {
+                type: 'personal',
+                name: 'Your Personal Manifesto',
+                description: 'Answer priority questions to generate your personal manifesto',
+                leader: 'Your Personal Manifesto',
+                policies: [],
+                generatedAt: new Date().toISOString(),
+                isPlaceholder: true
+            };
+        }
+        
+        const manifesto = buildManifestoFromPriorityScores(personalScores, 'Your Personal Manifesto', 'personal');
+        console.log('[Governance] Personal manifesto created with', manifesto?.policies?.length || 0, 'policies');
+        
+        if (manifesto) {
+            manifesto.leader = 'Your Personal Manifesto';
+            manifesto.description = 'Your personal policy preferences based on your votes';
+        }
+        
+        return manifesto;
+    } catch (error) {
+        console.error('[Governance] Error building personal manifesto:', error);
+        return null;
+    }
+}
+
+/**
+ * Calculate Community Average Scores from Priority Averages
+ */
+async function calculateCommunityAverageScores() {
+    try {
+        // Use existing priority averages if loaded
+        if (!window.priorityAverages || Object.keys(window.priorityAverages).length === 0) {
+            window.priorityAverages = await calculateAverageScores();
+        }
+
+        const communityScores = {};
+        
+        // Priority averages are already on 1-5 scale, use them directly
+        Object.entries(window.priorityAverages).forEach(([key, value]) => {
+            // Ensure value is a number and within 1-5 range
+            const score = typeof value === 'number' ? value : 3;
+            communityScores[key] = Math.max(1, Math.min(5, score));
+        });
+
+        return communityScores;
+    } catch (error) {
+        console.error('[Governance] Error calculating community average scores:', error);
+        return {};
+    }
+}
+
+/**
+ * Get Personal Manifesto Scores from User Responses
+ * Loads from localStorage where priority responses are stored
+ */
+async function getPersonalManifestoScores(userId) {
+    try {
+        console.log('[Governance] Loading personal scores for user:', userId);
+        
+        // First, try to get responses from localStorage (primary source)
+        const userResponses = loadUserPriorityResponses();
+        console.log('[Governance] Loaded from localStorage:', Object.keys(userResponses).length, 'areas');
+        
+        // Convert response structure to scores
+        const personalScores = {};
+        
+        // userResponses has structure: { areaId: { questionId: responseValue } }
+        Object.entries(userResponses).forEach(([areaId, questions]) => {
+            if (questions && typeof questions === 'object') {
+                Object.entries(questions).forEach(([questionId, responseValue]) => {
+                    const scoreKey = `${areaId}.${questionId}`;
+                    // responseValue should be already on 1-5 scale from PRIORITY_SCALE
+                    // If it's a string like 'probably', convert to score
+                    let score = 3; // default neutral
+                    
+                    if (typeof responseValue === 'number') {
+                        score = responseValue;
+                    } else if (typeof responseValue === 'string') {
+                        // Look up the score from PRIORITY_SCALE if available
+                        const scaleOption = PRIORITY_SCALE?.find(s => s.value === responseValue);
+                        if (scaleOption) {
+                            score = scaleOption.score;
+                        }
+                    }
+                    
+                    personalScores[scoreKey] = Math.max(1, Math.min(5, score));
+                });
+            }
+        });
+        
+        console.log('[Governance] Converted to personal scores:', Object.keys(personalScores).length, 'priorities');
+        return personalScores;
+    } catch (error) {
+        console.error('[Governance] Error getting personal manifesto scores:', error);
+        return {};
     }
 }
 
@@ -603,8 +939,7 @@ function renderManifestoTab(manifesto) {
                     <div style="font-size: 0.9em; color: var(--color-fontSecondary);">Political Party Manifesto</div>
                     <h1 style="margin: 8px 0; font-size: 1.8em; color: var(--color-buttonPrimary);">${manifesto.party}</h1>
                     ${manifesto.leader ? `<div style="color: var(--color-fontSecondary); margin-bottom: 10px;">Leader: ${manifesto.leader}</div>` : ''}
-                    <p style="margin: 12px 0; font-size: 1.1em; font-weight: 500;">${manifesto.description || manifesto.keyline}</p>
-                    ${manifesto.keyline && manifesto.keyline !== manifesto.description ? `<p style="margin: 0; color: var(--color-fontSecondary);">${manifesto.keyline}</p>` : ''}
+                    <p style="margin: 12px 0; font-size: 1.1em; font-weight: 500;">${manifesto.description || 'Policy positions on 13 key areas'}</p>
                 </div>
                 ${manifesto.sourceUrl ? `
                 <a href="${manifesto.sourceUrl}" target="_blank" rel="noopener noreferrer" style="padding: 12px 20px; background: ${manifesto.colour || '#0087DC'}; color: white; text-decoration: none; border-radius: 4px; white-space: nowrap; display: inline-block; font-size: 0.95em; font-weight: 500; min-width: 160px; text-align: center; transition: opacity 0.2s;">
@@ -618,8 +953,8 @@ function renderManifestoTab(manifesto) {
         // Community or personal manifesto header
         html += `
         <div style="margin-bottom: 20px;">
-            <h1 style="margin: 0 0 8px 0; font-size: 1.8em;color: var(--color-fontSecondary);">${manifesto.leader || 'Community Manifesto'}</h1>
-            <p style="margin: 0; color: var(--color-fontPrimary);">${manifesto.description || 'Collective policy positions'}</p>
+            <h1 style="margin: 0 0 8px 0; font-size: 1.8em; color: var(--color-fontPrimary);">${manifesto.leader || 'Community Manifesto'}</h1>
+            <p style="margin: 0; color: var(--color-fontSecondary);">${manifesto.description || 'Collective policy positions'}</p>
         </div>
         `;
     }
@@ -641,29 +976,30 @@ function renderManifestoTab(manifesto) {
     html += `
     <div style="margin-bottom: 20px; padding: 12px 16px; background: var(--color-pageBackground); border-radius: 6px; display: flex; gap: 10px; align-items: center;">
         <button onclick="openPriorityScoresModal()" style="padding: 10px 16px; background: var(--color-buttonSecondary); color: var(--color-buttonPrimary); border: 2px solid var(--color-buttonPrimary); border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-            View Scoring Methodology
+            View Priority Scores
         </button>
-        <span style="font-size: 0.85em; color: var(--color-fontSecondary); flex: 1;">See how party scores are calculated for each priority</span>
+        <span style="font-size: 0.85em; color: var(--color-fontSecondary); flex: 1;">See how positions are scored on priority issues</span>
     </div>
     `;
+    
     if (manifesto.policies && manifesto.policies.length > 0) {
         manifesto.policies.forEach(policy => {
             // Determine styling for "no position" sections
-            const isNoPosition = policy.hasNoPosition || policy.position.includes('has not published an official position');
-            const sectionStyle = isNoPosition ? 'opacity: 0.7; background: var(--color-background2); padding: 12px; border-radius: 4px;' : '';
+            const isNoPosition = policy.hasNoPosition || (policy.position && policy.position.includes('has not published an official position'));
+            const sectionStyle = isNoPosition ? 'opacity: 0.7; background: var(--color-background2); padding: 12px; border-radius: 4px;' : 'background: var(--color-cardBackground); border: 1px solid var(--color-border); padding: 16px; border-radius: 6px; margin-bottom: 16px;';
             
             html += `
             <div class="manifesto-section" style="${sectionStyle}">
-                <div style="display: flex; align-items: start; gap: 12px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: start; gap: 12px; margin-bottom: 14px;">
                     <div style="flex: 1;">
-                        <h2 style="margin: 0; font-size: 1.3em;">${policy.title}</h2>
-                        ${isNoPosition ? '<span style="font-size: 0.8em; color: var(--color-fontSecondary); font-style: italic;">No official position</span>' : ''}
+                        <h2 style="margin: 0; font-size: 1.2em; color: var(--color-fontPrimary);">${policy.title}</h2>
+                        ${isNoPosition ? '<span style="font-size: 0.8em; color: var(--color-fontSecondary); font-style: italic;">No official position</span>' : (policy.standForCount !== undefined ? `<span style="font-size: 0.85em; color: var(--color-fontSecondary); margin-top: 4px; display: block;">✓ ${policy.standForCount} priorities ${policy.dontStandForCount > 0 ? `| ✗ ${policy.dontStandForCount} priorities` : ''}</span>` : '')}
                     </div>
                 </div>
-                <div class="manifesto-position">${policy.position}</div>
+                <div class="manifesto-position" style="line-height: 1.6; color: var(--color-fontPrimary);">${policy.position}</div>
             `;
 
-            // Add key commitments for party manifestos
+            // Add key commitments for old-format party manifestos
             if (policy.keyCommitments && policy.keyCommitments.length > 0 && !isNoPosition) {
                 html += '<div style="margin-top: 15px; background: var(--color-background2); padding: 12px; border-radius: 4px;"><strong>Key Commitments:</strong><ul style="margin: 8px 0; padding-left: 20px;">';
                 policy.keyCommitments.forEach(commitment => {
