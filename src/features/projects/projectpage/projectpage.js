@@ -8,7 +8,7 @@ import {
     serverTimestamp, doc, updateDoc, getDoc, setDoc,
     where, deleteDoc, limit
 } from '../../../core/firebase-sdk.js';
-import { getStorage, ref, uploadBytes, getBytes, listAll } from '../../../core/firebase-sdk.js';
+import { getStorage, ref, uploadBytes, getBytes, listAll, deleteObject } from '../../../core/firebase-sdk.js';
 import { handleError, getSafeElement, setElementText, ERROR_TYPES } from '../../../core/error-handler.js';
 import { getDisplayName, formatFirebaseDate } from '../../../utils/helpers.js';
 import { getCategoryTemplate, hasPermission } from '../../../core/constants.js';
@@ -3778,30 +3778,39 @@ async function loadFilesData() {
         filesData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         renderFileTree();
         
-        // Setup drag-and-drop
-        const uploadArea = document.getElementById('uploadArea');
-        if (uploadArea) {
-            uploadArea.addEventListener('dragenter', (e) => {
-                e.preventDefault();
-                uploadArea.classList.add('drag-active');
-            });
-            uploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-            });
-            uploadArea.addEventListener('dragleave', (e) => {
-                if (e.target === uploadArea) {
-                    uploadArea.classList.remove('drag-active');
-                }
-            });
-            uploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadArea.classList.remove('drag-active');
-                handleDropFiles(e);
-            });
-        }
+        // Setup drag-and-drop (only once)
+        setupUploadAreaListeners();
     } catch (err) {
         console.error('Error loading files:', err);
     }
+}
+
+// Flag to ensure upload area listeners are only set up once
+let uploadAreaListenersSetup = false;
+
+function setupUploadAreaListeners() {
+    const uploadArea = document.getElementById('uploadArea');
+    if (!uploadArea || uploadAreaListenersSetup) return;
+    
+    uploadArea.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('drag-active');
+    });
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+    });
+    uploadArea.addEventListener('dragleave', (e) => {
+        if (e.target === uploadArea) {
+            uploadArea.classList.remove('drag-active');
+        }
+    });
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-active');
+        handleDropFiles(e);
+    });
+    
+    uploadAreaListenersSetup = true;
 }
 
 async function handleFileSelect(e) {
@@ -3847,10 +3856,14 @@ async function uploadFiles(files, folderPath) {
         try {
             console.log(`Uploading: ${file.name} (${file.size} bytes, type: ${file.type})`);
             const filePath = folderPath ? `${folderPath}/${file.name}` : file.name;
-            
-            // Save metadata to Firestore directly (no Cloud Storage for now)
-            // This avoids Storage security rule issues
             const fileId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const storagePath = `${basePath}/${projectId}/files/${fileId}_${file.name}`;
+            
+            // Upload file to Cloud Storage
+            const storageRef = ref(getStorage(), storagePath);
+            await uploadBytes(storageRef, file);
+            
+            // Save metadata to Firestore
             await addDoc(collection(db, basePath, projectId, 'files'), {
                 id: fileId,
                 name: file.name,
@@ -3858,7 +3871,8 @@ async function uploadFiles(files, folderPath) {
                 parentPath: folderPath,
                 type: file.type || 'application/octet-stream',
                 size: file.size,
-                url: `projects/${projectId}/files/${filePath}`,
+                storagePath: storagePath,
+                url: storagePath,
                 createdAt: serverTimestamp(),
                 createdBy: auth.currentUser.uid
             });
@@ -4056,8 +4070,23 @@ async function deleteFileOrFolder(path, isFolder) {
             return item.path === path || (isFolder && item.path && item.path.startsWith(path + '/'));
         });
         
-        // Delete all matched documents
+        // Delete all matched documents and their files from Cloud Storage
         for (const doc of toDelete) {
+            const item = doc.data();
+            
+            // Delete from Cloud Storage if storagePath exists
+            if (item.storagePath) {
+                try {
+                    const fileRef = ref(getStorage(), item.storagePath);
+                    await deleteObject(fileRef);
+                    console.log(`✓ Deleted from storage: ${item.storagePath}`);
+                } catch (err) {
+                    // File might not exist in storage, continue
+                    console.warn(`Could not delete from storage: ${item.storagePath}`, err);
+                }
+            }
+            
+            // Delete Firestore document
             await deleteDoc(doc.ref);
         }
         
@@ -4069,8 +4098,27 @@ async function deleteFileOrFolder(path, isFolder) {
 }
 
 async function downloadFile(url, filename) {
-    // Note: This is a placeholder. Actual download would require signed URLs or Cloud Functions
-    alert('Download feature coming soon. File: ' + filename);
+    try {
+        // url is the storage path
+        const storageRef = ref(getStorage(), url);
+        const fileBytes = await getBytes(storageRef);
+        
+        // Create a blob and download
+        const blob = new Blob([fileBytes], { type: 'application/octet-stream' });
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(downloadUrl);
+        
+        console.log(`✓ Downloaded: ${filename}`);
+    } catch (err) {
+        console.error(`✗ Error downloading ${filename}:`, err);
+        alert(`Failed to download ${filename}: ${err.message}`);
+    }
 }
 
 window.loadFilesData        = loadFilesData;

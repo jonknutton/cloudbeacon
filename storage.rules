@@ -18,6 +18,18 @@ service firebase.storage {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
     
+    // Project files - allow authenticated users to read and write
+    match /projects/{projectId}/files/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    
+    // Feed files - allow authenticated users to read and write
+    match /feed/{itemId}/files/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    
     // Fallback: deny everything else
     match /{allPaths=**} {
       allow read, write: if false;
