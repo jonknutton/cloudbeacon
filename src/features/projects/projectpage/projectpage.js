@@ -4121,6 +4121,78 @@ async function downloadFile(url, filename) {
     }
 }
 
+async function downloadAllFiles() {
+    try {
+        // Check if JSZip is available
+        if (typeof window.JSZip === 'undefined') {
+            alert('ZIP library is loading. Please try again in a moment.');
+            return;
+        }
+
+        // Get ALL files from the entire project tree
+        const allFiles = filesData.filter(f => !f.isFolder && f.type !== 'folder');
+
+        if (allFiles.length === 0) {
+            alert('No files to download in this project.');
+            return;
+        }
+
+        // Show loading message
+        const btn = event?.target;
+        const originalText = btn?.textContent;
+        if (btn) btn.textContent = '⏳ Preparing...';
+
+        const zip = new window.JSZip();
+        let successCount = 0;
+
+        // Add each file to the zip, preserving folder structure
+        for (const file of allFiles) {
+            try {
+                const storageRef = ref(getStorage(), file.url);
+                const fileBytes = await getBytes(storageRef);
+                // Use file.path to preserve folder structure (e.g., "folder1/subfolder/filename.txt")
+                const zipPath = file.path || file.name;
+                zip.file(zipPath, fileBytes);
+                successCount++;
+            } catch (err) {
+                console.error(`✗ Failed to add ${file.name} to zip:`, err);
+            }
+        }
+
+        if (successCount === 0) {
+            alert('Failed to download files.');
+            if (btn) btn.textContent = originalText;
+            return;
+        }
+
+        // Generate zip file
+        if (btn) btn.textContent = '📦 Creating ZIP...';
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+        // Create filename for the entire project
+        const projectTitle = document.getElementById('projectTitle')?.textContent || 'project';
+        const timestamp = new Date().toISOString().split('T')[0];
+        const zipFilename = `${projectTitle}_all_files_${timestamp}.zip`;
+
+        // Download the zip
+        const downloadUrl = URL.createObjectURL(zipBlob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = zipFilename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(downloadUrl);
+
+        if (btn) btn.textContent = originalText;
+        console.log(`✓ Downloaded ZIP: ${zipFilename} (${successCount} files)`);
+    } catch (err) {
+        console.error('✗ Error downloading all files:', err);
+        alert(`Failed to create ZIP file: ${err.message}`);
+        if (event?.target) event.target.textContent = event.target.dataset.originalText || '⬇️ Download All';
+    }
+}
+
 window.loadFilesData        = loadFilesData;
 window.handleFileSelect      = handleFileSelect;
 window.handleDropFiles       = handleDropFiles;
@@ -4130,6 +4202,7 @@ window.navigateToFolder      = navigateToFolder;
 window.createNewFolder       = createNewFolder;
 window.deleteFileOrFolder    = deleteFileOrFolder;
 window.downloadFile          = downloadFile;
+window.downloadAllFiles      = downloadAllFiles;
 window.toggleFileFolder      = toggleFileFolder;
 window.getFileIcon           = getFileIcon;
 window.formatFileSize        = formatFileSize;
