@@ -31,6 +31,31 @@ let editingTaskId = null; // set when editing an existing task, null when creati
 let filesData = [];  // { id, name, path, type, size, url, createdAt, createdBy, parentPath }
 let currentFilePath = '';  // Current folder path for navigation
 
+// ── Team membership cache for permission checks ────────────────────────────
+let teamMemberUIDs = [];  // Cache of team member UIDs for fast permission checks
+
+// Check if current user is a team member (with caching)
+async function isCurrentUserTeamMember() {
+    const user = auth.currentUser;
+    if (!user) return false;
+    
+    // Check cache first
+    if (teamMemberUIDs.length > 0) {
+        return teamMemberUIDs.includes(user.uid);
+    }
+    
+    // Load team members if cache is empty
+    try {
+        const basePath = itemType === 'legislation' ? 'feed' : 'projects';
+        const snap = await getDocs(collection(db, basePath, projectId, 'team'));
+        teamMemberUIDs = snap.docs.map(d => d.data().uid || d.id).filter(Boolean);
+        return teamMemberUIDs.includes(user.uid);
+    } catch (err) {
+        console.error('Error checking team membership:', err);
+        return false;
+    }
+}
+
 // ── Display ID helpers ────────────────────────────────────────────────────
 // Activities are numbered 1,2,3... in the order they were created (by their
 // stored activityNumber field). Tasks within an activity are numbered 1,2,3...
@@ -121,11 +146,11 @@ async function loadProject() {
             if (!currentItem) {
                 // Check if it's an offline/timeout issue
                 if (navigator.onLine === false) {
-                    setElementText('projectTitle', '🔌 No internet connection');
+                    setElementText('projectTitle', 'No internet connection');
                     const desc = document.getElementById('projectDescription');
                     if (desc) desc.textContent = 'Please check your internet connection and try again.';
                 } else {
-                    setElementText('projectTitle', '⚠️ Project data unavailable');
+                    setElementText('projectTitle', 'Project data unavailable');
                     const desc = document.getElementById('projectDescription');
                     if (desc) desc.textContent = 'The Firebase backend is not responding. Please refresh the page or try again in a moment.';
                 }
@@ -152,11 +177,11 @@ async function loadProject() {
         
         // Show more specific error message
         if (err.code === 'unavailable' || err.message?.includes('offline')) {
-            setElementText('projectTitle', '⚠️ Connection timeout');
+            setElementText('projectTitle', 'Connection timeout');
             const desc = document.getElementById('projectDescription');
             if (desc) desc.textContent = 'Firestore is not responding. This may be a temporary service issue. Please try refreshing the page.';
         } else {
-            setElementText('projectTitle', '❌ Error loading project');
+            setElementText('projectTitle', 'Error loading project');
         }
     }
 }
@@ -2518,6 +2543,9 @@ async function loadTeam() {
     const basePath = itemType === 'legislation' ? 'feed' : 'projects';
     const snap = await getDocs(collection(db, basePath, projectId, 'team'));
     const members = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    
+    // Update team member UIDs cache for permission checks
+    teamMemberUIDs = members.map(m => m.uid || m.id).filter(Boolean);
 
     const container = document.getElementById('teamGrid');
     if (!members.length) {
@@ -2666,7 +2694,7 @@ function renderChatMessage(msg, upVotes, downVotes, totalVotes, approvalPct) {
             <!-- Message content with avatar -->
             <div style="display:flex; gap:8px; margin-bottom:8px;">
                 <!-- Avatar -->
-                <div style="width:36px; height:36px; background:#3b82f6; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:14px; flex-shrink:0;">
+                <div style="width:36px; height:36px; background:#000; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:14px; flex-shrink:0;">
                     ${msg.authorName?.charAt(0)?.toUpperCase() || '?'}
                 </div>
                 
@@ -3780,6 +3808,9 @@ async function loadFilesData() {
         
         // Setup drag-and-drop (only once)
         setupUploadAreaListeners();
+        
+        // Update UI based on team membership
+        updateUploadAreaUI();
     } catch (err) {
         console.error('Error loading files:', err);
     }
@@ -3813,14 +3844,77 @@ function setupUploadAreaListeners() {
     uploadAreaListenersSetup = true;
 }
 
+// Update upload area UI based on team membership
+async function updateUploadAreaUI() {
+    const isTeamMember = await isCurrentUserTeamMember();
+    const fileInput = document.getElementById('fileInput');
+    const fileInputLabel = fileInput?.parentElement?.querySelector('span');
+    const newFolderBtn = document.querySelector('button[onclick="createNewFolder()"]');
+    const newFolderInput = document.getElementById('newFolderName');
+    const uploadArea = document.getElementById('uploadArea');
+    const deleteButtons = document.querySelectorAll('[data-team-restricted="delete"]');
+    
+    if (!isTeamMember) {
+        // Hide upload controls
+        if (fileInputLabel) fileInputLabel.style.display = 'none';
+        if (newFolderBtn) newFolderBtn.style.display = 'none';
+        if (newFolderInput) newFolderInput.style.display = 'none';
+        
+        // Hide all delete buttons
+        deleteButtons.forEach(btn => btn.style.display = 'none');
+        
+        // Add restriction message if not already present
+        if (uploadArea && !uploadArea.querySelector('.team-restriction-notice')) {
+            const notice = document.createElement('div');
+            notice.className = 'team-restriction-notice';
+            notice.style.marginTop = '12px';
+            notice.style.padding = '10px';
+            notice.style.background = '#fff3cd';
+            notice.style.border = '1px solid #ffc107';
+            notice.style.borderRadius = '4px';
+            notice.style.fontSize = '12px';
+            notice.style.color = '#856404';
+            notice.style.textAlign = 'center';
+            notice.innerHTML = '<strong>🔒 Team members only</strong><br>Join the team on the Team tab to upload or manage files.';
+            uploadArea.appendChild(notice);
+        }
+    } else {
+        // Show upload controls
+        if (fileInputLabel) fileInputLabel.style.display = 'inline-block';
+        if (newFolderBtn) newFolderBtn.style.display = 'inline-block';
+        if (newFolderInput) newFolderInput.style.display = 'inline-block';
+        
+        // Show all delete buttons
+        deleteButtons.forEach(btn => btn.style.display = 'inline-block');
+        
+        // Remove restriction message if present
+        const notice = uploadArea?.querySelector('.team-restriction-notice');
+        if (notice) notice.remove();
+    }
+}
+
 async function handleFileSelect(e) {
+    // Check team membership before allowing upload
+    const isTeamMember = await isCurrentUserTeamMember();
+    if (!isTeamMember) {
+        alert('❌ Only project team members can upload files. Join the team to participate.');
+        return;
+    }
+    
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     await uploadFiles(files, currentFilePath);
     e.target.value = '';  // Reset input
 }
 
-function handleDropFiles(e) {
+async function handleDropFiles(e) {
+    // Check team membership before allowing upload
+    const isTeamMember = await isCurrentUserTeamMember();
+    if (!isTeamMember) {
+        alert('❌ Only project team members can upload files. Join the team to participate.');
+        return;
+    }
+    
     e.preventDefault();
     e.stopPropagation();
     e.currentTarget.classList.remove('drag-active');
@@ -3842,6 +3936,13 @@ async function uploadFiles(files, folderPath) {
     // Check authentication
     if (!auth.currentUser) {
         alert('You must be logged in to upload files.');
+        return;
+    }
+    
+    // Check team membership
+    const isTeamMember = await isCurrentUserTeamMember();
+    if (!isTeamMember) {
+        alert('❌ Only project team members can upload files. Join the team to participate.');
         return;
     }
     
@@ -3963,16 +4064,19 @@ function renderFileTree() {
     });
     
     treeEl.innerHTML = html;
+    
+    // Re-apply UI restrictions based on team membership
+    updateUploadAreaUI();
 }
 
 function renderFolderRow(folder) {
     return `
         <div class="file-item folder-row">
             <span class="file-item-icon">📁</span>
-            <span class="file-item-name" onclick="navigateToFolder('${folder.path}')" style="cursor:pointer; flex:1; color:#3b82f6; font-weight:500;">${folder.name}</span>
+            <span class="file-item-name" onclick="navigateToFolder('${folder.path}')" style="cursor:pointer; flex:1; color:#333; font-weight:500;">${folder.name}</span>
             <div class="file-item-actions">
                 <button class="file-action-btn" onclick="navigateToFolder('${folder.path}')">Open</button>
-                <button class="file-action-btn delete" onclick="deleteFileOrFolder('${folder.path}', true)">Delete</button>
+                <button class="file-action-btn delete" data-team-restricted="delete" onclick="deleteFileOrFolder('${folder.path}', true)">Delete</button>
             </div>
         </div>
     `;
@@ -3987,7 +4091,7 @@ function renderFileRow(file) {
             <span class="file-item-size">${sizeStr}</span>
             <div class="file-item-actions">
                 <button class="file-action-btn" onclick="downloadFile('${file.url}', '${file.name}')">Download</button>
-                <button class="file-action-btn delete" onclick="deleteFileOrFolder('${file.path}', false)">Delete</button>
+                <button class="file-action-btn delete" data-team-restricted="delete" onclick="deleteFileOrFolder('${file.path}', false)">Delete</button>
             </div>
         </div>
     `;
@@ -4023,6 +4127,13 @@ function navigateToFolder(path) {
 }
 
 async function createNewFolder() {
+    // Check team membership before allowing folder creation
+    const isTeamMember = await isCurrentUserTeamMember();
+    if (!isTeamMember) {
+        alert('❌ Only project team members can create folders. Join the team to participate.');
+        return;
+    }
+    
     const nameInput = document.getElementById('newFolderName');
     const folderName = nameInput?.value?.trim();
     
@@ -4057,6 +4168,13 @@ async function createNewFolder() {
 }
 
 async function deleteFileOrFolder(path, isFolder) {
+    // Check team membership before allowing deletion
+    const isTeamMember = await isCurrentUserTeamMember();
+    if (!isTeamMember) {
+        alert('❌ Only project team members can delete files. Join the team to participate.');
+        return;
+    }
+    
     if (!confirm(`Delete ${isFolder ? 'folder and its contents' : 'file'}? This action cannot be undone.`)) return;
     
     const basePath = itemType === 'legislation' ? 'feed' : 'projects';
@@ -4203,6 +4321,7 @@ window.createNewFolder       = createNewFolder;
 window.deleteFileOrFolder    = deleteFileOrFolder;
 window.downloadFile          = downloadFile;
 window.downloadAllFiles      = downloadAllFiles;
+window.updateUploadAreaUI    = updateUploadAreaUI;
 window.toggleFileFolder      = toggleFileFolder;
 window.getFileIcon           = getFileIcon;
 window.formatFileSize        = formatFileSize;
