@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -10,15 +10,85 @@
     <link rel="stylesheet" href="profile.css">
 </head>
 <body>
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading-overlay" style="background-color: #f0f0f0;">
-        <div class="loading-container">
-            <div class="loading-spinner">⧗</div>
-            <div class="loading-text" style="color: #333333;">Loading</div>
-            <div class="loading-bar-container">
-                <div class="loading-bar" id="loadingProgress"></div>
+    <!-- Loading Overlay - Claude Loader -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <style>
+          #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a0f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+          }
+
+          #loadingOverlay.hidden {
+            display: none;
+          }
+
+          .claude-loader-scene {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 32px;
+          }
+
+          #claudeLoaderCanvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+          }
+
+          .loading-text {
+            color: #d97757;
+            font-size: 13px;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            opacity: 0;
+            animation: fadeIn 0.6s ease 0.8s forwards;
+          }
+
+          .dots span {
+            animation: blink 1.2s infinite;
+          }
+          .dots span:nth-child(2) { animation-delay: 0.2s; }
+          .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+          .progress-bar {
+            width: 120px;
+            height: 3px;
+            background: #1a1a2e;
+            border-radius: 2px;
+            overflow: hidden;
+            opacity: 0;
+            animation: fadeIn 0.6s ease 1s forwards;
+          }
+
+          .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #d97757, #e8956d);
+            border-radius: 2px;
+            animation: progress 2.5s ease-in-out 1.2s forwards;
+          }
+
+          @keyframes fadeIn { to { opacity: 1; } }
+          @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+          @keyframes progress { to { width: 100%; } }
+        </style>
+        <div class="claude-loader-scene">
+            <canvas id="claudeLoaderCanvas" width="160" height="160"></canvas>
+            <div class="loading-text">
+                Built with Claude Code<span class="dots"><span>.</span><span>.</span><span>.</span></span>
             </div>
-            <div class="loading-percent" id="loadingPercent" style="color: #888888;">0%</div>
+            <div class="progress-bar"><div class="progress-fill"></div></div>
         </div>
     </div>
 
@@ -336,5 +406,170 @@
     <script src="../../services/messagingUI.js"></script>
     <script type="module" src="profile.js"></script>
     <script src="../../utils/sharing.js"></script>
+
+    <!-- Claude Loader Renderer -->
+    <script>
+const claudeLoaderRenderer = {
+  canvas: null,
+  ctx: null,
+  isUndercover: false,
+  S: 8,
+
+  init() {
+    this.canvas = document.getElementById('claudeLoaderCanvas');
+    if (!this.canvas) return;
+    this.ctx = this.canvas.getContext('2d');
+    this.checkAuthState();
+    this.render();
+    document.addEventListener('authStateChanged', (e) => {
+      this.isUndercover = e.detail.isGuest;
+    });
+  },
+
+  checkAuthState() {
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+      const currentUser = firebase.auth().currentUser;
+      this.isUndercover = !currentUser || currentUser.isAnonymous;
+    } else {
+      this.isUndercover = !window.currentUser;
+    }
+  },
+
+  getSquidColor() { return window.CLAUDE_SQUID_COLOR || '#d97757'; },
+  lightenColor(color, percent) {
+    const num = parseInt(color.replace("#", ""), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    return "#" + (0x1000000 + (R<255?R:255)*0x10000 + (G<255?G:255)*0x100 + (B<255?B:255)).toString(16).slice(1);
+  },
+  darkenColor(color, percent) {
+    const num = parseInt(color.replace("#", ""), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) - amt;
+    const G = (num >> 8 & 0x00FF) - amt;
+    const B = (num & 0x0000FF) - amt;
+    return "#" + (0x1000000 + (R>0?R:0)*0x10000 + (G>0?G:0)*0x100 + (B>0?B:0)).toString(16).slice(1);
+  },
+
+  getPalette() {
+    if (this.isUndercover) {
+      return {
+        '0': null,
+        '1': '#2a3a7e',
+        '2': '#1f2e6a',
+        '4': '#0f1f4a',
+        '5': '#b85e3f',
+        '6': '#ffffff',
+        '7': '#0a0a0f',
+        '8': '#d97757',
+        '9': '#030818',
+      };
+    } else {
+      const base = this.getSquidColor();
+      return {
+        '0': null,
+        '1': this.lightenColor(base, 25),
+        '2': this.lightenColor(base, 10),
+        '4': base,
+        '5': this.darkenColor(base, 25),
+        '6': '#ffffff',
+        '7': '#0a0a0f',
+        '8': this.darkenColor(base, 35),
+        '9': this.darkenColor(base, 50),
+      };
+    }
+  },
+
+  getSprite() {
+    if (this.isUndercover) {
+      return [
+        ['0000024444200000', '0002244444422000', '0024444444444200', '0244446664644420', '0244466776644420', '0244455554544420', '0244444444444420', '0244444444444420', '0024444444444200', '0002244444422000', '0000244444420000', '0002444444442000', '0000244444420000', '0085050585050000', '0808008008080000', '0000008808000000', '0000000800000000', '0000000000000000', '0000000000000000', '0000000000000000'],
+        ['0000024444200000', '0002244444422000', '0024444444444200', '0244446664644420', '0244466776644420', '0244455554544420', '0244444444444420', '0244444444444420', '0024444444444200', '0002244444422000', '0000244444420000', '0002444444442000', '0000244444420000', '0085050585050000', '0808008008080000', '0000008808000000', '0000000800000000', '0000000000000000', '0000000000000000', '0000000000000000'],
+      ];
+    } else {
+      return [
+        ['0000024444200000', '0002244444422000', '0024444444444200', '0244446664644420', '0244466776644420', '0244455554544420', '0244444444444420', '0244444444444420', '0024444444444200', '0002244444422000', '0000244444420000', '0002444444442000', '0085858585850000', '0808080808080000', '0080800808080000', '0800008080000000', '0000008080000000', '0000000800000000', '0000000000000000', '0000000000000000'],
+        ['0000024444200000', '0002244444422000', '0024444444444200', '0244446664644420', '0244466776644420', '0244455554544420', '0244444444444420', '0244444444444420', '0024444444444200', '0002244444422000', '0000244444420000', '0002444444442000', '0000244444420000', '0085050585050000', '0808008008080000', '0000008808000000', '0000000800000000', '0000000000000000', '0000000000000000', '0000000000000000'],
+      ];
+    }
+  },
+
+  frame: 0, tick: 0, bobPhase: 0, particles: [],
+
+  initParticles() {
+    this.particles = [];
+    for(let i=0; i<12; i++) {
+      this.particles.push({x: Math.random()*160, y: Math.random()*160, size: Math.random()*2+1, speed: Math.random()*0.3+0.1, opacity: Math.random()*0.5+0.1, char: ['0','1','{','}','<','>','/','_','#'][Math.floor(Math.random()*9)]});
+    }
+  },
+
+  drawSprite(frameIdx, ox, oy) {
+    const pal = this.getPalette();
+    const frames = this.getSprite();
+    const rows = frames[frameIdx];
+    rows.forEach((row, ry) => {
+      for(let rx=0; rx<row.length; rx++) {
+        const c = pal[row[rx]];
+        if(!c) continue;
+        this.ctx.fillStyle = c;
+        this.ctx.fillRect(ox + rx*this.S, oy + ry*this.S, this.S, this.S);
+      }
+    });
+  },
+
+  drawGlow(cx, cy, r, color) {
+    const g = this.ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0, color+'33');
+    g.addColorStop(1, color+'00');
+    this.ctx.fillStyle = g;
+    this.ctx.beginPath();
+    this.ctx.arc(cx,cy,r,0,Math.PI*2);
+    this.ctx.fill();
+  },
+
+  render() {
+    if (!this.ctx) return;
+    this.ctx.clearRect(0,0,160,160);
+    this.ctx.fillStyle = '#0a0a0f';
+    this.ctx.fillRect(0,0,160,160);
+    this.ctx.strokeStyle = '#1a1a2e';
+    this.ctx.lineWidth = 0.5;
+    for(let i=0;i<160;i+=16) {
+      this.ctx.beginPath(); this.ctx.moveTo(i,0); this.ctx.lineTo(i,160); this.ctx.stroke();
+      this.ctx.beginPath(); this.ctx.moveTo(0,i); this.ctx.lineTo(160,i); this.ctx.stroke();
+    }
+    this.ctx.font = '10px Courier New';
+    this.particles.forEach(p => {
+      this.ctx.fillStyle = `rgba(217,119,87,${p.opacity})`;
+      this.ctx.fillText(p.char, p.x, p.y);
+      p.y -= p.speed;
+      if(p.y < -10) { p.y = 170; p.x = Math.random()*160; }
+    });
+    this.bobPhase += 0.05;
+    const bob = Math.sin(this.bobPhase)*4;
+    this.drawGlow(80, 90+bob, 55, this.getSquidColor());
+    const spriteX = (160-16*this.S)/2;
+    const spriteY = 6+bob;
+    this.drawSprite(this.frame, spriteX, spriteY);
+    const cursorVisible = Math.floor(this.tick/18)%2 === 0;
+    if(cursorVisible) { this.ctx.fillStyle = '#5ab87a'; this.ctx.fillRect(72, 148, 16, 3); }
+    this.tick++;
+    if(this.tick%30 === 0) this.frame = (this.frame+1)%2;
+    requestAnimationFrame(() => this.render());
+  }
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    claudeLoaderRenderer.initParticles();
+    claudeLoaderRenderer.init();
+  });
+} else {
+  claudeLoaderRenderer.initParticles();
+  claudeLoaderRenderer.init();
+}
+    </script>
 </body>
 </html>
