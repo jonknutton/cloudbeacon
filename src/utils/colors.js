@@ -17,6 +17,9 @@ const ColorPalette = {
     pageBackground: '#f0f0f0',     // Page background
     cardBackground: '#ffffff',     // Card/panel background
     textboxBackground: '#ffffff',  // Input/textbox background
+
+   // Claude Squid mascot color (loading screen)
+    claudeSquidColor: '#d97757',   // Default orange
     
     // Dark theme defaults (for dark pages)
     darkPageBg: '#1a1a1a',
