@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Loading</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0f;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+  }
+
+  .scene {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+  }
+
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  .loading-text {
+    color: #d97757;
+    font-size: 13px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    opacity: 0;
+    animation: fadeIn 0.6s ease 0.8s forwards;
+  }
+
+  .dots span {
+    animation: blink 1.2s infinite;
+  }
+  .dots span:nth-child(2) { animation-delay: 0.2s; }
+  .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  .progress-bar {
+    width: 120px;
+    height: 3px;
+    background: #1a1a2e;
+    border-radius: 2px;
+    overflow: hidden;
+    opacity: 0;
+    animation: fadeIn 0.6s ease 1s forwards;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #d97757, #e8956d);
+    border-radius: 2px;
+    animation: progress 2.5s ease-in-out 1.2s forwards;
+  }
+
+  /* Scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  @keyframes fadeIn { to { opacity: 1; } }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+  @keyframes progress { to { width: 100%; } }
+</style>
+</head>
+<body>
+<div class="scene">
+  <canvas id="mascot" width="160" height="160"></canvas>
+  <div class="loading-text">
+    Built with Claude Code<span class="dots"><span>.</span><span>.</span><span>.</span></span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill"></div></div>
+</div>
+
+<script>
+const canvas = document.getElementById('mascot');
+const ctx = canvas.getContext('2d');
+const S = 8; // pixel size
+
+// Palette
+const C = {
+  body:   '#d97757',
+  bodyD:  '#b85e3f',
+  shell:  '#1a1a2e',
+  shellH: '#2a2a4e',
+  eye:    '#ffffff',
+  pupil:  '#0a0a0f',
+  glow:   '#e8956d',
+  coral:  '#c86040',
+  term:   '#3a8c5c',
+  termL:  '#5ab87a',
+  void:   '#0a0a0f',
+  orange2:'#f0a070',
+};
+
+// Pixel art frames: each cell = 1 pixel block
+// 0=void, 1=body, 2=bodyD, 3=shell, 4=shellH, 5=eye, 6=pupil, 7=coral, 8=term, 9=termL, A=orange2
+
+// 16x16 grid, 2 frames for animation
+const FRAMES = [
+  // Frame 1 – legs down
+  [
+    '0000000000000000',
+    '0000033333300000',
+    '0000344444430000',
+    '0003444444443000',
+    '0034411551144300',
+    '0344116611444430',
+    '0344166611444430',
+    '0344444444444430',
+    '0034444444444300',
+    '0003444444443000',
+    '0000344444430000',
+    '0002424242420000',
+    '0020202020200000',
+    '0200000000002000',
+    '0000000000000000',
+    '0000000000000000',
+  ],
+  // Frame 2 – legs up
+  [
+    '0000000000000000',
+    '0000033333300000',
+    '0000344444430000',
+    '0003444444443000',
+    '0034411551144300',
+    '0344116611444430',
+    '0344166611444430',
+    '0344444444444430',
+    '0034444444444300',
+    '0003444444443000',
+    '0002424242420000',
+    '0000344444430000',
+    '0020202020200000',
+    '0200000000002000',
+    '0000000000000000',
+    '0000000000000000',
+  ],
+];
+
+// Better mascot — octopus/squid creature with terminal aesthetic
+// Using a more faithful 16×20 sprite
+const SPRITE = {
+  w: 16,
+  h: 20,
+  // rows of hex chars, 0-9 + a-f for 16 colors
+  frames: [
+    // Frame A: tentacles spread
+    [
+      '0000033333300000',
+      '0003344444433000',
+      '0034444444444300',
+      '0344441551444430',
+      '0344415551444430',
+      '0344155515444430',
+      '0344444444444430',
+      '0034444444444300',
+      '0003344444433000',
+      '0000344444430000',
+      '0000344444430000',
+      '0003444444443000',
+      '0022420242024200',
+      '0202020202020200',
+      '0020020020020000',
+      '0200020200020000',
+      '0000200200000000',
+      '0000000000000000',
+      '0000000000000000',
+      '0000000000000000',
+    ],
+    // Frame B: tentacles together
+    [
+      '0000033333300000',
+      '0003344444433000',
+      '0034444444444300',
+      '0344441551444430',
+      '0344415551444430',
+      '0344155515444430',
+      '0344444444444430',
+      '0034444444444300',
+      '0003344444433000',
+      '0000344444430000',
+      '0000344444430000',
+      '0003444444443000',
+      '0000344444430000',
+      '0002020242020200',
+      '0200020020020000',
+      '0000002020000000',
+      '0000000200000000',
+      '0000000000000000',
+      '0000000000000000',
+      '0000000000000000',
+    ],
+  ]
+};
+
+const PAL = ['#0a0a0f','#ffffff','#e8956d','#d97757','#b85e3f','#5ab87a','#ffffff','#0a0a0f','#2a2a4e','#3a3a6e','#c86040','#f0a070','#0a0a0f','#0a0a0f','#0a0a0f','#0a0a0f'];
+// indices: 0=void 1=eye 2=bodyL 3=body 4=bodyD 5=term 6=eyeW 7=pupil 8=shell 9=shellH
+
+// Clean readable sprite (16×20, each char = pixel index)
+// 0=transparent, 1=body highlight, 2=body main, 3=body shadow, 4=eye white, 5=pupil, 6=shell dark, 7=shell light, 8=leg, 9=leg tip
+const bodyPal = {
+  '0': null,
+  '1': '#f0a070',   // body light
+  '2': '#d97757',   // body main  
+  '3': '#b85e3f',   // body shadow
+  '4': '#2a2a4e',   // shell dark
+  '5': '#3a3a6e',   // shell light
+  '6': '#ffffff',   // eye white
+  '7': '#0a0a0f',   // pupil
+  '8': '#c86040',   // mid body
+  '9': '#e8956d',   // body brightest
+};
+
+// 16×20 sprite — smaller head, compact form
+// pal2 key: 0=void 1=brightest 2=light 4=main 5=mid-shadow 6=eye-white 7=pupil 8=deep-shadow 9=darkest
+const octoSprite = [
+  // Frame 0 — compact head, tentacles spread
+  [
+    '0000044444400000',
+    '0000445555440000',
+    '0004455555544000',
+    '0044466664554400',  // big white eyes with black pupils
+    '0044566776554400',  // prominent black pupils
+    '0044555555554400',
+    '0044555555554400',
+    '0044555555554400',
+    '0004455555544000',
+    '0000445555440000',
+    '0000445555440000',
+    '0004455555544000',
+    '0084858585848000',
+    '0808080808080800',
+    '0080080080080000',
+    '0800080800080000',
+    '0000800800000000',
+    '0000000000000000',
+    '0000000000000000',
+    '0000000000000000',
+  ],
+  // Frame 1 — compact head, tentacles tucked
+  [
+    '0000044444400000',
+    '0000445555440000',
+    '0004455555544000',
+    '0044466664554400',
+    '0044566776554400',
+    '0044555555554400',
+    '0044555555554400',
+    '0044555555554400',
+    '0004455555544000',
+    '0000445555440000',
+    '0000445555440000',
+    '0004455555544000',
+    '0000445555440000',
+    '0084050585040800',
+    '0808008008080000',
+    '0000008080000000',
+    '0000000800000000',
+    '0000000000000000',
+    '0000000000000000',
+    '0000000000000000',
+  ],
+];
+
+const pal2 = {
+  '0': null,
+  '1': getSquidLightColor(),   // body brightest highlight
+  '2': getSquidMainColor(),    // body light
+  '4': getSquidColor(),        // body main orange
+  '5': getSquidDarkColor(),    // body mid-shadow
+  '6': '#ffffff',   // eye white
+  '7': '#0a0a0f',   // pupil
+  '8': getSquidDeepColor(),    // body deep shadow / tentacle
+  '9': getSquidTipColor(),   // tentacle tip darkest
+};
+
+// Helper functions to generate color shades
+function getSquidColor() {
+  return window.CLAUDE_SQUID_COLOR || '#d97757';
+}
+
+function getSquidLightColor() {
+  const base = getSquidColor();
+  return lightenColor(base, 25);
+}
+
+function getSquidMainColor() {
+  const base = getSquidColor();
+  return lightenColor(base, 10);
+}
+
+function getSquidDarkColor() {
+  const base = getSquidColor();
+  return darkenColor(base, 25);
+}
+
+function getSquidDeepColor() {
+  const base = getSquidColor();
+  return darkenColor(base, 35);
+}
+
+function getSquidTipColor() {
+  const base = getSquidColor();
+  return darkenColor(base, 50);
+}
+
+// Color manipulation utilities
+function lightenColor(color, percent) {
+  const num = parseInt(color.replace("#", ""), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = (num >> 16) + amt;
+  const G = (num >> 8 & 0x00FF) + amt;
+  const B = (num & 0x0000FF) + amt;
+  return "#" + (0x1000000 + (R<255?R:255)*0x10000 +
+    (G<255?G:255)*0x100 + (B<255?B:255))
+    .toString(16).slice(1);
+}
+
+function darkenColor(color, percent) {
+  const num = parseInt(color.replace("#", ""), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = (num >> 16) - amt;
+  const G = (num >> 8 & 0x00FF) - amt;
+  const B = (num & 0x0000FF) - amt;
+  return "#" + (0x1000000 + (R>0?R:0)*0x10000 +
+    (G>0?G:0)*0x100 + (B>0?B:0))
+    .toString(16).slice(1);
+}
+
+// Terminal cursor blink
+let frame = 0;
+let tick = 0;
+let bobY = 0;
+let bobDir = 1;
+let bobPhase = 0;
+
+// Particle system
+const particles = [];
+for(let i=0;i<12;i++) {
+  particles.push({
+    x: Math.random() * 160,
+    y: Math.random() * 160,
+    size: Math.random() * 2 + 1,
+    speed: Math.random() * 0.3 + 0.1,
+    opacity: Math.random() * 0.5 + 0.1,
+    char: ['0','1','{','}','<','>','/','_','#'][Math.floor(Math.random()*9)]
+  });
+}
+
+function drawSprite(frameIdx, ox, oy) {
+  const rows = octoSprite[frameIdx];
+  rows.forEach((row, ry) => {
+    for(let rx=0; rx<row.length; rx++) {
+      const c = pal2[row[rx]];
+      if(!c) continue;
+      ctx.fillStyle = c;
+      ctx.fillRect(ox + rx*S, oy + ry*S, S, S);
+    }
+  });
+}
+
+function drawGlow(cx, cy, r, color) {
+  const g = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+  g.addColorStop(0, color + '33');
+  g.addColorStop(1, color + '00');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.fill();
+}
+
+function render() {
+  ctx.clearRect(0,0,160,160);
+  
+  // Background subtle grid
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0,0,160,160);
+  
+  // Grid lines
+  ctx.strokeStyle = '#1a1a2e';
+  ctx.lineWidth = 0.5;
+  for(let i=0;i<160;i+=16) {
+    ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,160); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(160,i); ctx.stroke();
+  }
+
+  // Floating particles
+  ctx.font = '10px Courier New';
+  particles.forEach(p => {
+    ctx.fillStyle = `rgba(217,119,87,${p.opacity})`;
+    ctx.fillText(p.char, p.x, p.y);
+    p.y -= p.speed;
+    if(p.y < -10) { p.y = 170; p.x = Math.random()*160; }
+  });
+
+  // Bob animation
+  bobPhase += 0.05;
+  const bob = Math.sin(bobPhase) * 4;
+
+  // Glow under mascot
+  drawGlow(80, 90 + bob, 55, '#d97757');
+
+  // Draw sprite centered: 16 cols × S=8 = 128px wide → offset 16px; 20 rows × 8 = 160 → but we want it at ~y=10
+  const spriteX = (160 - 16*S)/2;
+  const spriteY = 6 + bob;
+  drawSprite(frame, spriteX, spriteY);
+
+  // Terminal cursor below mascot
+  const cursorVisible = Math.floor(tick / 18) % 2 === 0;
+  if(cursorVisible) {
+    ctx.fillStyle = '#5ab87a';
+    ctx.fillRect(72, 148, 16, 3);
+  }
+
+  tick++;
+  if(tick % 30 === 0) frame = (frame + 1) % 2;
+
+  requestAnimationFrame(render);
+}
+
+render();
+</script>
+</body>
+</html>
