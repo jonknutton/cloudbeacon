@@ -122,6 +122,14 @@ const ColorSettings = {
                     <input type="text" class="color-picker-value" readonly>
                   </div>
                 </div>
+                
+                <div class="color-picker-item">
+                  <label for="colorClaudeSquid">Claude Squid Color</label>
+                  <div class="color-input-wrapper">
+                    <input type="color" id="colorClaudeSquid" data-color-key="claudeSquidColor" class="color-picker-input">
+                    <input type="text" class="color-picker-value" readonly>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
